@@ -50,3 +50,42 @@ def read_category(category_id: int, db: Session = Depends(get_db),):
 
     return category_db
 
+@router.put("/{category_id}", response_model=CategoryRead)
+def edit_category(category_id: int, category: CategoryUpdate, db: Session = Depends(get_db)):
+
+    result = update_category(db, category_id, category)
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found"
+        )
+    if result is False:
+        raise HTTPException(
+            status_code=409,
+            detail="Category already exists"
+        )
+    return result
+
+@router.delete("/{category_id}")
+def remove_category(category_id: int, db: Session = Depends(get_db)):
+
+    result = delete_category(db, category_id)
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No such Category"
+        )
+    
+    return {
+        "Message": "Category deleted successfully.."
+    }
+
+
+
+
+
+
+
+
