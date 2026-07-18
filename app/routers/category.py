@@ -25,7 +25,7 @@ router = APIRouter(
 def add_category(category: CategoryCreate, db : Session = Depends(get_db)):
     category_db = create_category(db, category)
 
-    if category_db is None:
+    if category_db is False:
 
         raise HTTPException(
             status_code=409,

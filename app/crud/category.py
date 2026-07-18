@@ -6,16 +6,26 @@ from app.models.category import Category
 from app.schemas.category import (CategoryCreate,CategoryRead, CategoryUpdate)
 
 def create_category(db: Session, category: CategoryCreate):
+
+# Normalize the input
+
+    normalized_name = category.name.strip().lower()
+    display_name = category.name.strip().title()
+
+ # Check for duplicate active category
+
     existing = (
         db.query(Category)
-        .filter(Category.name == category.name).first()
+        .filter(func.lower(func.trim(Category.name)) == normalized_name,
+                Category.is_active == True)
+                .first()
     )
 
     if existing:
-        return None
+        return False
     
     db_category = Category(
-        name=category.name,
+        name=display_name,
         type=category.type,
     )
 
@@ -59,31 +69,52 @@ def get_category_by_id(db: Session, category_id: int):
 #     db.refresh(db_category)
 #     return db_category
 
-def update_category(db: Session, category_id: int, category: CategoryUpdate):
-    db_category = db.query(Category).filter(Category.id == category_id).first()
-
-    if not db_category:
-        return None
-
-    new_name = category.name.strip()
-
-    duplicate = (
+def update_category(
+    db: Session,
+    category_id: int,
+    category: CategoryUpdate,
+):
+    # Find active category
+    db_category = (
         db.query(Category)
         .filter(
-            func.lower(Category.name) == new_name.lower(),
-            Category.id != category_id,
+            Category.id == category_id,
+            Category.is_active == True,
         )
         .first()
     )
 
-    if duplicate:
+    if db_category is None:
+        return None
+
+    # Normalize user input
+    normalized_name = category.name.strip().lower()
+    display_name = category.name.strip().title()
+
+    # Check duplicates among active categories
+    duplicate = (
+        db.query(Category)
+        .filter(
+            func.lower(func.trim(Category.name)) == normalized_name,
+            Category.id != category_id,
+            Category.is_active == True,
+        )
+        .first()
+    )
+
+    if duplicate is not None:
         return False
 
-    db_category.name = new_name
+    # Update object
+    db_category.name = display_name
     db_category.type = category.type
 
+    # Save
     db.commit()
+
+    # Reload updated values
     db.refresh(db_category)
+
     return db_category
 
 def delete_category(db: Session, category_id: int):
