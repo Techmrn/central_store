@@ -1,3 +1,4 @@
+from alembic.util import status
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -23,15 +24,14 @@ router = APIRouter(
 
 @router.post("/", response_model=CategoryRead)
 def add_category(category: CategoryCreate, db : Session = Depends(get_db)):
-    category_db = create_category(db, category)
+    try:
+        return create_category(db, category)
 
-    if category_db is False:
-
+    except ValueError as e:
         raise HTTPException(
-            status_code=409,
-            detail="Category already exists.",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
         )
-    return category_db
 
 @router.get("/",response_model=list[CategoryRead],)
 def list_categories(db: Session = Depends(get_db),):

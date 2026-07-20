@@ -10,7 +10,9 @@ class UnitCreate(UnitBase):
     pass
 
 class UnitUpdate(UnitBase):
-    pass
+    name: str | None = None
+    symbol: str | None = None
+    description : str | None = None
 
 class UnitRead(UnitBase):
     id: int
