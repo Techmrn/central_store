@@ -21,6 +21,7 @@ if config.config_file_name is not None:
 from app.models.base import Base
 from app.models.category import Category
 from app.models.unit import Unit
+from app.models.office import Office
 
 target_metadata = Base.metadata
 # other values from the config, defined by the needs of env.py,
