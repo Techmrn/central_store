@@ -13,6 +13,7 @@ class OfficeType(str, Enum):
     DISTRICT_FORM_STORE = "District Form Store"
 
 
+
 class Office(BaseModel):
     __tablename__ = "offices"
 
@@ -28,7 +29,7 @@ class Office(BaseModel):
         nullable=False,
     )
 
-    office_type: Mapped[OfficeType] = mapped_column(
+    office_type:  Mapped[OfficeType] = mapped_column(
         SqlEnum(OfficeType),
         nullable=False,
     )
