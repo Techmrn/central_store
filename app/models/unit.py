@@ -7,13 +7,15 @@ class Unit(BaseModel):
     __tablename__ = "units"
 
     name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
+    String(100),
+    unique=True,
+    nullable=False,
+    index=True, )
 
     symbol: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False
+    String(20),
+    unique=True,
+    nullable=False,
     )
 
     description: Mapped[str | None] = mapped_column(
