@@ -142,7 +142,11 @@ def update_category(
 # --------------------------------------------------
 
 def delete_category(db: Session, category_id: int):
-    db_category = db.query(Category).filter(Category.id == category_id).first()
+    db_category = (
+        db.query(Category)
+        .filter(Category.id == category_id, Category.is_active == True)
+        .first()
+    )
     
     if not db_category:
         return None
