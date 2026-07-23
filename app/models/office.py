@@ -1,9 +1,10 @@
 from enum import Enum
 
 from sqlalchemy import Enum as SqlEnum, String, Integer
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
+
 
 
 class OfficeType(str, Enum):
@@ -43,3 +44,7 @@ class Office(BaseModel):
         String(255),
         nullable=True,
     )
+
+    sections: Mapped[list["Section"]] = relationship(
+    back_populates="office"
+)

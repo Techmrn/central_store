@@ -8,6 +8,12 @@ class Category(BaseModel):
     __tablename__ = "categories"
 
     #id,created_at,updated_at,is_active: will come from BaseModel
+
+    code: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        unique=True,
+    )
     
     name: Mapped[str] = mapped_column(
         String(100),

@@ -4,6 +4,7 @@ from datetime import datetime
 from app.models.enums import Category_Type
 
 class CategoryBase(BaseModel):
+    code: str
     name: str
     type: Category_Type
 
@@ -11,6 +12,7 @@ class CategoryCreate(CategoryBase):
     pass
 
 class CategoryUpdate(CategoryBase):
+    code: str | None = None
     name: str | None = None
     type: Category_Type | None = None
 

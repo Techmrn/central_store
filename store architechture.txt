@@ -1,0 +1,39 @@
+Government Printing Department
+│
+├── Directorate
+│
+├── Central Store  ← (Located in Central Press campus)
+│       │
+│       ├── Supplies Directorate Sections
+│       ├── Supplies Central Press Sections
+│       └── Transfers stock to all Branch Offices
+│
+├── Branch Office 1
+│      └── Branch Store
+│
+├── Branch Office 2
+│      └── Branch Store
+│
+└── ...
+
+
+
+This changes our model slightly
+
+The Office table should represent the administrative unit.
+
+Office
+-------
+Directorate
+Central Press
+Branch A
+Branch B
+...
+
+The Central Store itself is a store, not an office.
+
+Its customers are:
+
+Directorate Sections
+Central Press Sections
+Branch Stores

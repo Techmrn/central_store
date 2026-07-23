@@ -19,7 +19,7 @@ from app.schemas.office import (
 
 router = APIRouter(
     prefix="/offices",
-    tags=["offices"],
+    tags=["Offices"],
 )
 
 @router.post(

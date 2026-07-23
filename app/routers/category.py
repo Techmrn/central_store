@@ -23,6 +23,10 @@ router = APIRouter(
 )
 
 
+# ---------------------------------------------------------------
+# Create
+# ---------------------------------------------------------------
+
 @router.post(
     "/",
     response_model=CategoryRead,
@@ -43,6 +47,10 @@ def add_category(
         )
 
 
+# ---------------------------------------------------------------
+# Read All
+# ---------------------------------------------------------------
+
 @router.get(
     "/",
     response_model=list[CategoryRead],
@@ -54,6 +62,10 @@ def list_categories(
     return get_all_categories(db)
 
 
+# ---------------------------------------------------------------
+# Read One
+# ---------------------------------------------------------------
+
 @router.get(
     "/{category_id}",
     response_model=CategoryRead,
@@ -64,10 +76,7 @@ def read_category(
     db: Session = Depends(get_db),
 ):
 
-    category_db = get_category_by_id(
-        db,
-        category_id,
-    )
+    category_db = get_category_by_id(db, category_id)
 
     if category_db is None:
         raise HTTPException(
@@ -77,6 +86,10 @@ def read_category(
 
     return category_db
 
+
+# ---------------------------------------------------------------
+# Update
+# ---------------------------------------------------------------
 
 @router.put(
     "/{category_id}",
@@ -90,6 +103,7 @@ def edit_category(
 ):
 
     try:
+
         result = update_category(
             db=db,
             category_id=category_id,
@@ -111,6 +125,10 @@ def edit_category(
         )
 
 
+# ---------------------------------------------------------------
+# Delete
+# ---------------------------------------------------------------
+
 @router.delete(
     "/{category_id}",
     summary="Delete Category",
@@ -120,10 +138,7 @@ def remove_category(
     db: Session = Depends(get_db),
 ):
 
-    result = delete_category(
-        db,
-        category_id,
-    )
+    result = delete_category(db, category_id)
 
     if result is None:
         raise HTTPException(

@@ -2,44 +2,67 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.models.category import Category
+from app.schemas.category import CategoryCreate, CategoryUpdate
 
-from app.schemas.category import (CategoryCreate,CategoryRead, CategoryUpdate)
 
-#---------------------------------------------------------------
-###### Helper functions for CRUD operations on Category model
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+# Helper Functions
+# ---------------------------------------------------------------
 
 def normalize_category_name(name: str) -> tuple[str, str]:
     """
-    Returns :  normalized_name -> Used for duplicate checking
+    Returns:
+        normalized_name -> Used for duplicate checking
         display_name    -> Stored in database
     """
     cleaned = name.strip()
-    return cleaned.lower(), cleaned.title()
+    return cleaned.lower(), cleaned
 
-#----------------------------------------------------------------
-#    Create
-#---------------------------------------------------------------
 
+def normalize_category_code(code: str) -> str:
+    """
+    Returns uppercase trimmed category code.
+    """
+    return code.strip().upper()
+
+
+# ---------------------------------------------------------------
+# Create
+# ---------------------------------------------------------------
 
 def create_category(db: Session, category: CategoryCreate):
 
-
     normalized_name, display_name = normalize_category_name(category.name)
+    category_code = normalize_category_code(category.code)
 
- # Check for duplicate active category
-
-    duplicate = (
+    # Check duplicate code
+    duplicate_code = (
         db.query(Category)
-        .filter(func.lower(func.trim(Category.name)) == normalized_name,
-                Category.is_active == True)
-                .first()
+        .filter(
+            func.upper(func.trim(Category.code)) == category_code,
+            Category.is_active == True,
+        )
+        .first()
     )
 
-    if duplicate:
-        raise ValueError(f"Category with name '{category.name}' already exists.")
-    
+    if duplicate_code:
+        raise ValueError("Category code already exists.")
+
+    # Check duplicate name
+    duplicate_name = (
+        db.query(Category)
+        .filter(
+            func.lower(func.trim(Category.name)) == normalized_name,
+            Category.is_active == True,
+        )
+        .first()
+    )
+
+    if duplicate_name:
+        raise ValueError("Category name already exists.")
+
     db_category = Category(
+        code=category_code,
         name=display_name,
         type=category.type,
     )
@@ -49,44 +72,52 @@ def create_category(db: Session, category: CategoryCreate):
         db.commit()
         db.refresh(db_category)
         return db_category
-    
+
     except Exception:
         db.rollback()
         raise
 
-#----------------------------------------------------------------
-#    Read All
-#---------------------------------------------------------------
-   
+
+# ---------------------------------------------------------------
+# Read All
+# ---------------------------------------------------------------
 
 def get_all_categories(db: Session):
-    return(
-        db.query(Category).
-        filter(Category.is_active == True).
-        order_by(Category.name).
-        all())
 
-# --------------------------------------------------
+    return (
+        db.query(Category)
+        .filter(Category.is_active == True)
+        .order_by(Category.name)
+        .all()
+    )
+
+
+# ---------------------------------------------------------------
 # Read One
-# --------------------------------------------------
-
+# ---------------------------------------------------------------
 
 def get_category_by_id(db: Session, category_id: int):
-    return(db.query(Category)
-           .filter(Category.id == category_id, 
-                   Category.is_active == True,)
-           .first())
 
-# --------------------------------------------------
+    return (
+        db.query(Category)
+        .filter(
+            Category.id == category_id,
+            Category.is_active == True,
+        )
+        .first()
+    )
+
+
+# ---------------------------------------------------------------
 # Update
-# --------------------------------------------------
+# ---------------------------------------------------------------
 
 def update_category(
     db: Session,
     category_id: int,
     category: CategoryUpdate,
 ):
-    # Find active category
+
     db_category = (
         db.query(Category)
         .filter(
@@ -100,6 +131,33 @@ def update_category(
         return None
 
     update_data = category.model_dump(exclude_unset=True)
+
+    # ------------------------
+    # Code
+    # ------------------------
+
+    if "code" in update_data:
+
+        category_code = normalize_category_code(update_data["code"])
+
+        duplicate = (
+            db.query(Category)
+            .filter(
+                func.upper(func.trim(Category.code)) == category_code,
+                Category.id != category_id,
+                Category.is_active == True,
+            )
+            .first()
+        )
+
+        if duplicate:
+            raise ValueError("Category code already exists.")
+
+        db_category.code = category_code
+
+    # ------------------------
+    # Name
+    # ------------------------
 
     if "name" in update_data:
 
@@ -118,15 +176,16 @@ def update_category(
         )
 
         if duplicate:
-            raise ValueError("Category already exists.")
+            raise ValueError("Category name already exists.")
 
         db_category.name = display_name
 
+    # ------------------------
+    # Type
+    # ------------------------
+
     if "type" in update_data:
         db_category.type = update_data["type"]
-
-    if "is_active" in update_data:
-        db_category.is_active = update_data["is_active"]
 
     try:
         db.commit()
@@ -137,20 +196,28 @@ def update_category(
         db.rollback()
         raise
 
-# --------------------------------------------------
-# Soft Delete
-# --------------------------------------------------
 
-def delete_category(db: Session, category_id: int):
+# ---------------------------------------------------------------
+# Soft Delete
+# ---------------------------------------------------------------
+
+def delete_category(
+    db: Session,
+    category_id: int,
+):
+
     db_category = (
         db.query(Category)
-        .filter(Category.id == category_id, Category.is_active == True)
+        .filter(
+            Category.id == category_id,
+            Category.is_active == True,
+        )
         .first()
     )
-    
-    if not db_category:
+
+    if db_category is None:
         return None
-    
+
     db_category.is_active = False
 
     try:
@@ -161,10 +228,3 @@ def delete_category(db: Session, category_id: int):
     except Exception:
         db.rollback()
         raise
-
-
-
-
-
-
-
