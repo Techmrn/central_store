@@ -24,6 +24,8 @@ from app.models.unit import Unit
 from app.models.office import Office
 from app.models.section import Section
 from app.models.financial_year import FinancialYear
+from app.models.item import Item
+from app.models.opening_stock import OpeningStock
 
 target_metadata = Base.metadata
 # other values from the config, defined by the needs of env.py,
