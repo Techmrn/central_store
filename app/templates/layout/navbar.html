@@ -1,0 +1,60 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+
+    <div class="container-fluid">
+
+        <a class="navbar-brand fw-bold" href="/dashboard">
+
+            <i class="bi bi-box-seam"></i>
+
+            Central Stock Management System
+
+        </a>
+
+        <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarContent">
+
+            <span class="navbar-toggler-icon"></span>
+
+        </button>
+
+        <div
+            class="collapse navbar-collapse"
+            id="navbarContent">
+
+            <ul class="navbar-nav ms-auto align-items-center">
+
+                <li class="nav-item me-3">
+
+                    <span class="text-white">
+
+                        Welcome,
+                        <strong>{{ current_user.full_name if current_user else "Administrator" }}</strong>
+
+                    </span>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a
+                        href="/logout"
+                        class="btn btn-light btn-sm">
+
+                        <i class="bi bi-box-arrow-right"></i>
+
+                        Logout
+
+                    </a>
+
+                </li>
+
+            </ul>
+
+        </div>
+
+    </div>
+
+</nav>
