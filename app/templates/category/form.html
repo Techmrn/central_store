@@ -1,20 +1,153 @@
 {% extends "layout/base.html" %}
-{% block title %}Category{% endblock %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
 {% block content %}
-<h3>{{page_title}}</h3>
-<form>
-<div class="mb-3">
-<label class="form-label">Category Name</label>
-<input class="form-control" placeholder="Enter category">
+
+<div class="container-fluid">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/category/">Category</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {{ page_title }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Card -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h4 class="mb-0">
+                {{ page_title }}
+            </h4>
+        </div>
+
+        <div class="card-body">
+
+            <!-- Error Message -->
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ error }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert">
+                </button>
+            </div>
+            {% endif %}
+
+            <form method="post" action="/category/new">
+
+                <!-- Category Code -->
+                <div class="mb-3">
+                    <label for="code" class="form-label">
+                        Category Code
+                    </label>
+
+                    <input
+                        type="text"
+                        id="code"
+                        name="code"
+                        class="form-control"
+                        maxlength="20"
+                        required
+                        value="{{ category.code if category else '' }}">
+                </div>
+
+                <!-- Category Name -->
+                <div class="mb-3">
+
+                    <label for="name" class="form-label">
+                        Category Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        class="form-control"
+                        maxlength="100"
+                        required
+                        value="{{ category.name if category else '' }}">
+
+                </div>
+
+                <!-- Category Type -->
+                <div class="mb-4">
+
+                    <label for="type" class="form-label">
+                        Category Type
+                    </label>
+
+                    <select
+                        id="type"
+                        name="type"
+                        class="form-select"
+                        required>
+
+                        <option value="">
+                            Select Category Type
+                        </option>
+
+                        <option value="Material"
+                            {% if category and category.type.value == "Material" %}
+                                selected
+                            {% endif %}>
+                            Material
+                        </option>
+
+                        <option value="Asset"
+                            {% if category and category.type.value == "Asset" %}
+                                selected
+                            {% endif %}>
+                            Asset
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary">
+
+                        <i class="bi bi-check-circle"></i>
+
+                        Save
+
+                    </button>
+
+                    <a
+                        href="/category/"
+                        class="btn btn-secondary">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
 </div>
-<div class="mb-3">
-<label class="form-label">Type</label>
-<select class="form-select">
-<option>Consumable</option>
-<option>Asset</option>
-</select>
-</div>
-<button class="btn btn-success">Save</button>
-<a href="/category/" class="btn btn-secondary">Cancel</a>
-</form>
+
 {% endblock %}
