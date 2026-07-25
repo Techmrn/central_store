@@ -8,7 +8,10 @@ from app.routers.section import router as section_router
 from app.routers.financial_year import router as financial_year_router
 from app.routers.item import router as item_router
 from app.routers.opening_stock import router as opening_stock_router
-from app.routers import web
+
+#importing jinja templates
+from app.routers.ui import dashboard   # Including HTML Template 
+from app.routers.ui import category
 
 app = FastAPI(
     title="Central Stock Management System",
@@ -22,7 +25,8 @@ app.include_router(section_router) # Include the sections router
 app.include_router(financial_year_router)
 app.include_router(item_router)
 app.include_router(opening_stock_router)
-app.include_router(web.router)
+app.include_router(dashboard.router)
+app.include_router(category.router)
 
 app.mount(
     "/static",

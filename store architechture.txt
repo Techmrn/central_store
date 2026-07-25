@@ -37,3 +37,93 @@ Its customers are:
 Directorate Sections
 Central Press Sections
 Branch Stores
+
+****************Final Template Structure***********************
+
+central_store/
+│
+├── alembic/
+│
+├── app/
+│   │
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── db.py
+│   │   └── templates.py          ← NEW
+│   │
+│   ├── models/
+│   │
+│   ├── schemas/
+│   │   ├── category.py
+│   │   ├── office.py
+│   │   ├── section.py            ← Rename from sections.py
+│   │   ├── unit.py
+│   │   ├── item.py
+│   │   ├── supplier.py
+│   │   ├── financial_year.py
+│   │   └── opening_stock.py
+│   │
+│   ├── crud/
+│   │   ├── category.py
+│   │   ├── office.py
+│   │   ├── section.py
+│   │   ├── unit.py
+│   │   ├── item.py
+│   │   ├── supplier.py
+│   │   ├── financial_year.py
+│   │   ├── opening_stock.py
+│   │   └── dashboard.py          ← NEW
+│   │
+│   ├── services/
+│   │
+│   ├── routers/
+│   │   ├── category.py           # REST API
+│   │   ├── office.py
+│   │   ├── section.py
+│   │   ├── unit.py
+│   │   ├── item.py
+│   │   ├── supplier.py
+│   │   ├── financial_year.py
+│   │   ├── opening_stock.py
+│   │   │
+│   │   └── ui/                   ← NEW
+│   │       ├── __init__.py
+│   │       ├── dashboard.py
+│   │       ├── category.py
+│   │       ├── office.py
+│   │       ├── section.py
+│   │       ├── unit.py
+│   │       ├── supplier.py
+│   │       ├── item.py
+│   │       └── opening_stock.py
+│   │
+│   ├── static/
+│   │   ├── css/
+│   │   │   ├── style.css
+│   │   │   └── dashboard.css
+│   │   │
+│   │   ├── js/
+│   │   │   ├── app.js
+│   │   │   ├── category.js
+│   │   │   ├── office.js
+│   │   │   └── ...
+│   │   │
+│   │   └── img/
+│   │
+│   ├── templates/
+│   │   ├── layout/
+│   │   ├── components/
+│   │   ├── dashboard/
+│   │   ├── category/
+│   │   ├── office/
+│   │   ├── section/
+│   │   ├── unit/
+│   │   ├── supplier/
+│   │   ├── item/
+│   │   └── opening_stock/
+│   │
+│   └── main.py
+│
+├── .env
+├── requirements.txt
+└── alembic.ini

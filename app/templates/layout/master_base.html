@@ -1,0 +1,158 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+
+        {% block breadcrumb %}
+
+        <ol class="breadcrumb">
+
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+
+            <li class="breadcrumb-item active">
+
+                {% block page_title %}
+                Master
+                {% endblock %}
+
+            </li>
+
+        </ol>
+
+        {% endblock %}
+
+    </nav>
+
+
+    <!-- Page Header -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <h2 class="mb-0">
+
+                {% block page_heading %}
+                Master
+                {% endblock %}
+
+            </h2>
+
+            <small class="text-muted">
+
+                {% block page_description %}
+                Manage records
+                {% endblock %}
+
+            </small>
+
+        </div>
+
+    </div>
+
+
+    <!-- Messages -->
+
+    {% include "components/messages.html" %}
+
+
+    <!-- Toolbar -->
+
+    <div class="card shadow-sm mb-3">
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-6">
+
+                    {% block toolbar_left %}
+
+                    <a href="#"
+                       class="btn btn-primary">
+
+                        <i class="bi bi-plus-circle"></i>
+
+                        Add New
+
+                    </a>
+
+                    {% endblock %}
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    {% block toolbar_right %}
+
+                    <form method="GET">
+
+                        <div class="input-group">
+
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="search"
+                                placeholder="Search">
+
+                            <button
+                                class="btn btn-outline-secondary">
+
+                                <i class="bi bi-search"></i>
+
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                    {% endblock %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Main Card -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            {% block table_content %}
+
+            {% endblock %}
+
+        </div>
+
+    </div>
+
+
+    <!-- Pagination -->
+
+    <div class="mt-3">
+
+        {% block pagination %}
+
+        {% endblock %}
+
+    </div>
+
+</div>
+
+{% endblock %}

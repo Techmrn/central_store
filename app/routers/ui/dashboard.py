@@ -1,18 +1,16 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from app.core.templates import templates
 
-router = APIRouter(tags=["Web"])
-
-templates = Jinja2Templates(directory="app/templates")
-
+router = APIRouter(tags=["Dashboard UI"])
 
 @router.get("/", response_class=HTMLResponse)
-def home(request: Request):
+def dashboard(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="dashboard/home.html",
         context={
-            "title": "Dashboard"
-        }
+            "request": request,
+            "page_title": "Dashboard",
+        },
     )

@@ -1,0 +1,30 @@
+{% if success %}
+
+<div class="alert alert-success alert-dismissible fade show">
+
+    {{ success }}
+
+    <button
+        class="btn-close"
+        data-bs-dismiss="alert">
+    </button>
+
+</div>
+
+{% endif %}
+
+
+{% if error %}
+
+<div class="alert alert-danger alert-dismissible fade show">
+
+    {{ error }}
+
+    <button
+        class="btn-close"
+        data-bs-dismiss="alert">
+    </button>
+
+</div>
+
+{% endif %}
