@@ -48,8 +48,9 @@
             </div>
             {% endif %}
 
-            <form method="post" action="/category/new">
-
+            <form
+                method="post"
+                action="{% if is_edit %}/category/{{ category.id }}/edit{% else %}/category/new{% endif %}">
                 <!-- Category Code -->
                 <div class="mb-3">
                     <label for="code" class="form-label">
@@ -128,7 +129,11 @@
 
                         <i class="bi bi-check-circle"></i>
 
-                        Save
+                        {% if is_edit %}
+                            Update
+                        {% else %}
+                            Save
+                        {% endif %}
 
                     </button>
 

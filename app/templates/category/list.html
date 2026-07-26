@@ -61,6 +61,21 @@ Page Header
 
 </div>
 
+<!-- ==========================================================
+flash message
+=========================================================== -->
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i>
+    {{ success }}
+
+    <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="alert">
+    </button>
+</div>
+{% endif %}
 
 <!-- ==========================================================
 Search
@@ -168,15 +183,86 @@ Category Table
                             </a>
 
                             <button
-                                class="btn btn-danger btn-sm">
+                                 class="btn btn-sm btn-danger"
+                                 data-bs-toggle="modal"
+                                 data-bs-target="#deleteModal{{ category.id }}">
 
-                                <i class="bi bi-trash"></i>
+                                 <i class="bi bi-trash"></i>
+
+                                 Delete
+
 
                             </button>
 
                         </td>
 
                     </tr>
+
+                    <!------Delete  Modal goes HERE -------->
+
+                    <div
+                    class="modal fade"
+                    id="deleteModal{{ category.id }}"
+                    tabindex="-1">
+
+                    <div class="modal-dialog">
+
+                        <div class="modal-content">
+
+                            <div class="modal-header">
+
+                                <h5 class="modal-title">
+                                    Delete Category
+                                </h5>
+
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal">
+                                </button>
+
+                            </div>
+
+                            <div class="modal-body">
+
+                                Are you sure you want to delete
+
+                                <strong>{{ category.name }}</strong> ?
+
+                            </div>
+
+                            <div class="modal-footer">
+
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    data-bs-dismiss="modal">
+
+                                    Cancel
+
+                                </button>
+
+                                <form
+                                    method="post"
+                                    action="/category/{{ category.id }}/delete">
+
+                                    <button
+                                        type="submit"
+                                        class="btn btn-danger">
+
+                                        Delete
+
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div> 
 
                 {% else %}
 
@@ -190,7 +276,7 @@ Category Table
 
                         </td>
 
-                    </tr>
+                    </tr>   
 
                 {% endfor %}
 
@@ -229,6 +315,17 @@ searchBox.addEventListener("keyup", function () {
     });
 
 });
+
+
+
+const alertBox = document.querySelector(".alert");
+
+if (alertBox) {
+    setTimeout(() => {
+        const bsAlert = bootstrap.Alert.getOrCreateInstance(alertBox);
+        bsAlert.close();
+    }, 3000);
+}
 
 </script>
 
