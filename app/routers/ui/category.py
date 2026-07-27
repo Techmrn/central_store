@@ -31,11 +31,12 @@ router = APIRouter(
 )
 def list_categories(
     request: Request,
+    search: str = Query(default=""),
     success: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
 
-    categories = get_all_categories(db)
+    categories = get_all_categories(db=db, search=search)
 
     return templates.TemplateResponse(
         request=request,
@@ -44,6 +45,7 @@ def list_categories(
             "request": request,
             "page_title": "Category Master",
             "categories": categories,
+            "search": search,
             "success": success,
         },
     )

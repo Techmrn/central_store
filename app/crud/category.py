@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 
 from app.models.category import Category
@@ -23,6 +23,7 @@ def normalize_category_name(name: str) -> tuple[str, str]:
 def normalize_category_code(code: str) -> str:
     """
     Returns uppercase trimmed category code.
+
     """
     return code.strip().upper()
 
@@ -86,14 +87,24 @@ def create_category(db: Session, category: CategoryCreate):
 # Read All
 # ---------------------------------------------------------------
 
-def get_all_categories(db: Session):
+def get_all_categories(db: Session, search:str = "",):
 
-    return (
-        db.query(Category)
-        .filter(Category.is_active == True)
-        .order_by(Category.name)
-        .all()
-    )
+    query = db.query(Category).filter(Category.is_active == True)
+
+    if search:
+        search = search.strip()
+
+        query = query.filter(
+            or_(
+                Category.code.ilike(f"%{search}%"),
+                Category.name.ilike(f"%{search}%"),
+            )
+        )
+
+    categories = query.order_by(Category.name).all()
+
+    return categories
+
 
 
 # ---------------------------------------------------------------

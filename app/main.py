@@ -25,8 +25,8 @@ app.include_router(section_router) # Include the sections router
 app.include_router(financial_year_router)
 app.include_router(item_router)
 app.include_router(opening_stock_router)
-app.include_router(dashboard.router)
-app.include_router(category.router)
+app.include_router(dashboard.router) #ui router
+app.include_router(category.router) #ui router
 
 app.mount(
     "/static",
