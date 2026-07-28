@@ -64,18 +64,8 @@ Page Header
 <!-- ==========================================================
 flash message
 =========================================================== -->
-{% if success %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    <i class="bi bi-check-circle-fill me-2"></i>
-    {{ success }}
 
-    <button
-        type="button"
-        class="btn-close"
-        data-bs-dismiss="alert">
-    </button>
-</div>
-{% endif %}
+{% include "components/flash_message.html" %}
 
 <!-- ==========================================================
 Search
@@ -86,10 +76,11 @@ Search
     <div class="card-body">
 
         <input
-            id="searchBox"
+            id="search-input"
             type="text"
             class="form-control"
-            placeholder="Search Category">
+            placeholder="Search Category"
+            value="{{ search }}" >
 
     </div>
 
@@ -103,186 +94,11 @@ Category Table
 <div class="card shadow-sm">
 
     <div class="card-body p-0">
+        {% include "components/loading_spinner.html" %}
 
-        <div class="table-responsive">
+        <div id="table-container">
 
-            <table
-                id="categoryTable"
-                class="table table-hover table-striped align-middle mb-0">
-
-                <thead class="table-dark">
-
-                    <tr>
-
-                        <th width="90">
-                            Code
-                        </th>
-
-                        <th>
-                            Category Name
-                        </th>
-
-                        <th width="150">
-                            Type
-                        </th>
-
-                        <th width="120">
-                            Status
-                        </th>
-
-                        <th width="170">
-                            Actions
-                        </th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                {% for category in categories %}
-
-                    <tr>
-
-                        <td>
-
-                            {{ category.code }}
-
-                        </td>
-
-                        <td>
-
-                            {{ category.name }}
-
-                        </td>
-
-                        <td>
-
-                            {{ category.type.value }}
-
-                        </td>
-
-                        <td>
-
-                            <span class="badge bg-success">
-
-                                Active
-
-                            </span>
-
-                        </td>
-
-                        <td>
-
-                            <a
-                                href="/category/{{ category.id }}/edit"
-                                class="btn btn-warning btn-sm">
-
-                                <i class="bi bi-pencil-square"></i>
-
-                            </a>
-
-                            <button
-                                 class="btn btn-sm btn-danger"
-                                 data-bs-toggle="modal"
-                                 data-bs-target="#deleteModal{{ category.id }}">
-
-                                 <i class="bi bi-trash"></i>
-
-                                 Delete
-
-
-                            </button>
-
-                        </td>
-
-                    </tr>
-
-                    <!------Delete  Modal goes HERE -------->
-
-                    <div
-                    class="modal fade"
-                    id="deleteModal{{ category.id }}"
-                    tabindex="-1">
-
-                    <div class="modal-dialog">
-
-                        <div class="modal-content">
-
-                            <div class="modal-header">
-
-                                <h5 class="modal-title">
-                                    Delete Category
-                                </h5>
-
-                                <button
-                                    type="button"
-                                    class="btn-close"
-                                    data-bs-dismiss="modal">
-                                </button>
-
-                            </div>
-
-                            <div class="modal-body">
-
-                                Are you sure you want to delete
-
-                                <strong>{{ category.name }}</strong> ?
-
-                            </div>
-
-                            <div class="modal-footer">
-
-                                <button
-                                    type="button"
-                                    class="btn btn-secondary"
-                                    data-bs-dismiss="modal">
-
-                                    Cancel
-
-                                </button>
-
-                                <form
-                                    method="post"
-                                    action="/category/{{ category.id }}/delete">
-
-                                    <button
-                                        type="submit"
-                                        class="btn btn-danger">
-
-                                        Delete
-
-                                    </button>
-
-                                </form>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div> 
-
-                {% else %}
-
-                    <tr>
-
-                        <td
-                            colspan="5"
-                            class="text-center py-5 text-muted">
-
-                            No Categories Found
-
-                        </td>
-
-                    </tr>   
-
-                {% endfor %}
-
-                </tbody>
-
-            </table>
+            {% include "category/table.html" %}
 
         </div>
 
@@ -293,40 +109,10 @@ Category Table
 {% endblock %}
 
 
+
+
 {% block scripts %}
 
-<script>
-
-const searchBox = document.getElementById("searchBox");
-
-searchBox.addEventListener("keyup", function () {
-
-    const filter = this.value.toLowerCase();
-
-    const rows = document.querySelectorAll("#categoryTable tbody tr");
-
-    rows.forEach(row => {
-
-        row.style.display =
-            row.innerText.toLowerCase().includes(filter)
-            ? ""
-            : "none";
-
-    });
-
-});
-
-
-
-const alertBox = document.querySelector(".alert");
-
-if (alertBox) {
-    setTimeout(() => {
-        const bsAlert = bootstrap.Alert.getOrCreateInstance(alertBox);
-        bsAlert.close();
-    }, 3000);
-}
-
-</script>
+<script src="{{ url_for('static', path='js/live_search.js') }}"></script>
 
 {% endblock %}

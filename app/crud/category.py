@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
+import math
 
 from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate
+from app.core.constants import PAGE_SIZE
 
 
 # ---------------------------------------------------------------
@@ -87,7 +89,11 @@ def create_category(db: Session, category: CategoryCreate):
 # Read All
 # ---------------------------------------------------------------
 
-def get_all_categories(db: Session, search:str = "",):
+def get_all_categories(
+        db: Session, 
+        search:str = "", # for search item
+        page: int = 1, # for pagination
+    ):
 
     query = db.query(Category).filter(Category.is_active == True)
 
@@ -101,9 +107,23 @@ def get_all_categories(db: Session, search:str = "",):
             )
         )
 
-    categories = query.order_by(Category.name).all()
+    total_records = query.count()
 
-    return categories
+    categories = (
+        query
+        .order_by(Category.name)
+        .offset((page-1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
+        .all()
+    )
+
+    return {
+        "items": categories,
+        "current_page": page,
+        "page_size": PAGE_SIZE,
+        "total_records": total_records,
+        "total_pages": math.ceil(total_records / PAGE_SIZE) if total_records else 1,
+    }
 
 
 

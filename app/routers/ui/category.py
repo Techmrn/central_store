@@ -25,18 +25,20 @@ router = APIRouter(
 # Category List
 # ---------------------------------------------------------
 
-@router.get(
-    "/",
-    response_class=HTMLResponse,
-)
+@router.get("/", response_class=HTMLResponse)
 def list_categories(
     request: Request,
     search: str = Query(default=""),
+    page: int = Query(default=1),
     success: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
 
-    categories = get_all_categories(db=db, search=search)
+    result = get_all_categories(
+        db=db,
+        search=search,
+        page=page,
+    )
 
     return templates.TemplateResponse(
         request=request,
@@ -44,7 +46,8 @@ def list_categories(
         context={
             "request": request,
             "page_title": "Category Master",
-            "categories": categories,
+            "categories": result["items"],
+            "pagination": result,
             "search": search,
             "success": success,
         },
@@ -207,4 +210,33 @@ def delete_category_ui(
         status_code=303,
     )
 
+
+#-------------Table route for live search------------
+
+@router.get("/table", response_class=HTMLResponse)
+def category_table(
+    request: Request,
+    search: str = "",
+    page: int = 1,
+    db: Session = Depends(get_db),
+):
+
+    result = get_all_categories(
+        db=db,
+        search=search,
+        page=page,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="category/table.html",
+        context={
+            "request": request,
+            "categories": result["items"],
+            "pagination": result,
+            "search": search,
+        },
+    )
+    
+    
 
