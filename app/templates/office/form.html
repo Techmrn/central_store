@@ -1,0 +1,153 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/office/">Office</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {{ page_title }}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h4 class="mb-0">{{ page_title }}</h4>
+        </div>
+
+        <div class="card-body">
+
+            {% if error %}
+            <div class="alert alert-danger">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="post"
+                  action="{% if is_edit %}/office/{{ office.id }}/edit{% else %}/office/new{% endif %}">
+
+                <!-- Office Code -->
+                <div class="mb-3">
+                    <label class="form-label">Office Code</label>
+
+                    <input
+                        type="text"
+                        name="code"
+                        class="form-control"
+                        maxlength="20"
+                        required
+                        value="{{ office.code if office else '' }}">
+                </div>
+
+                <!-- Office Name -->
+                <div class="mb-3">
+                    <label class="form-label">Office Name</label>
+
+                    <input
+                        type="text"
+                        name="name"
+                        class="form-control"
+                        maxlength="150"
+                        required
+                        value="{{ office.name if office else '' }}">
+                </div>
+
+                <!-- Office Type -->
+                <div class="mb-3">
+                    <label class="form-label">Office Type</label>
+
+                    <select
+                        name="office_type"
+                        class="form-select"
+                        required>
+
+                        <option value="">Select Office Type</option>
+
+                        <option value="Directorate"
+                            {% if office and office.office_type.value == "Directorate" %}selected{% endif %}>
+                            Directorate
+                        </option>
+
+                        <option value="Government Central Press"
+                            {% if office and office.office_type.value == "Government Central Press" %}selected{% endif %}>
+                            Government Central Press
+                        </option>
+
+                        <option value="Branch"
+                            {% if office and office.office_type.value == "Branch" %}selected{% endif %}>
+                            Branch
+                        </option>
+
+                        <option value="District Form Store"
+                            {% if office and office.office_type.value == "District Form Store" %}selected{% endif %}>
+                            District Form Store
+                        </option>
+
+                    </select>
+                </div>
+
+                <!-- Display Order -->
+                <div class="mb-3">
+                    <label class="form-label">Display Order</label>
+
+                    <input
+                        type="number"
+                        name="display_order"
+                        class="form-control"
+                        value="{{ office.display_order if office else 0 }}">
+                </div>
+
+                <!-- Remarks -->
+                <div class="mb-4">
+                    <label class="form-label">Remarks</label>
+
+                    <textarea
+                        name="remarks"
+                        rows="3"
+                        class="form-control">{{ office.remarks if office else '' }}</textarea>
+                </div>
+
+                <div class="d-flex gap-2">
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i>
+
+                        {% if is_edit %}
+                            Update
+                        {% else %}
+                            Save
+                        {% endif %}
+                    </button>
+
+                    <a href="/office/" class="btn btn-secondary">
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

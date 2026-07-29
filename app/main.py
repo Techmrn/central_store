@@ -12,6 +12,10 @@ from app.routers.opening_stock import router as opening_stock_router
 #importing jinja templates
 from app.routers.ui import dashboard   # Including HTML Template 
 from app.routers.ui import category
+from app.routers.ui import unit
+from app.routers.ui import office
+from app.routers.ui import section
+
 
 app = FastAPI(
     title="Central Stock Management System",
@@ -27,6 +31,10 @@ app.include_router(item_router)
 app.include_router(opening_stock_router)
 app.include_router(dashboard.router) #ui router
 app.include_router(category.router) #ui router
+app.include_router(unit.router) # adding ui of unit master
+app.include_router(office.router) # adding ui of office master
+app.include_router(section.router) # adding ui of Section master
+
 
 app.mount(
     "/static",

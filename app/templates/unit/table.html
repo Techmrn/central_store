@@ -7,22 +7,18 @@
         </small> -->
 
     </div>
-    <table id="categoryTable" class="table table-hover table-striped align-middle mb-0">
+    <table id="unitTable" class="table table-hover table-striped align-middle mb-0">
 
         <thead class="table-dark">
 
             <tr>
 
                 <th width="90">
-                    Code
+                    Unit Name
                 </th>
 
                 <th>
-                    Category Name
-                </th>
-
-                <th width="150">
-                    Type
+                    Unit Symbol
                 </th>
 
                 <th width="120">
@@ -39,25 +35,19 @@
 
         <tbody>
 
-            {% for category in categories %}
+            {% for unit in units %}
 
             <tr>
 
                 <td>
 
-                    {{ category.code }}
+                    {{ unit.name }}
 
                 </td>
 
                 <td>
 
-                    {{ category.name }}
-
-                </td>
-
-                <td>
-
-                    {{ category.type.value }}
+                    {{ unit.symbol }}
 
                 </td>
 
@@ -73,14 +63,14 @@
 
                 <td>
 
-                    <a href="/category/{{ category.id }}/edit" class="btn btn-warning btn-sm">
+                    <a href="/unit/{{ unit.id }}/edit" class="btn btn-warning btn-sm">
 
                         <i class="bi bi-pencil-square"></i>
 
                     </a>
 
                     <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
-                        data-bs-target="#deleteModal{{ category.id }}">
+                        data-bs-target="#deleteModal{{ unit.id }}">
 
                         <i class="bi bi-trash"></i>
 
@@ -95,7 +85,7 @@
 
             <!------Delete  Modal goes HERE -------->
 
-            <div class="modal fade" id="deleteModal{{ category.id }}" tabindex="-1">
+            <div class="modal fade" id="deleteModal{{ unit.id }}" tabindex="-1">
 
                 <div class="modal-dialog">
 
@@ -104,7 +94,7 @@
                         <div class="modal-header">
 
                             <h5 class="modal-title">
-                                Delete Category
+                                Delete Unit
                             </h5>
 
                             <button type="button" class="btn-close" data-bs-dismiss="modal">
@@ -116,7 +106,7 @@
 
                             Are you sure you want to delete
 
-                            <strong>{{ category.name }}</strong> ?
+                            <strong>{{ unit.name }}</strong> ?
 
                         </div>
 
@@ -128,7 +118,7 @@
 
                             </button>
 
-                            <form method="post" action="/category/{{ category.id }}/delete">
+                            <form method="post" action="/unit/{{ unit.id }}/delete">
 
                                 <button type="submit" class="btn btn-danger">
 
@@ -152,7 +142,7 @@
 
                 <td colspan="5" class="text-center py-5 text-muted">
 
-                    No Categories Found
+                    No Units Found
 
                 </td>
 

@@ -1,0 +1,144 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/unit/">Unit</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {{ page_title }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Card -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h4 class="mb-0">
+                {{ page_title }}
+            </h4>
+        </div>
+
+        <div class="card-body">
+
+            <!-- Error Message -->
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ error }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert">
+                </button>
+            </div>
+            {% endif %}
+
+            <form
+                method="post"
+                action="{% if is_edit %}/unit/{{ unit.id }}/edit{% else %}/unit/new{% endif %}">
+                
+                <!-- Unit Name -->
+                <div class="mb-3">
+
+                    <label for="name" class="form-label">
+                        Unit Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        class="form-control"
+                        maxlength="100"
+                        required
+                        value="{{ unit.name if unit else '' }}">
+
+                </div>
+
+                <!-- Unit Symbol -->
+                <div class="mb-4">
+
+                    <label for="type" class="form-label">
+                        Unit Symbol
+                    </label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="symbol"
+                        class="form-control"
+                        maxlength="100"
+                        required
+                        value="{{ unit.symbol if unit else '' }}">
+
+                </div>
+
+                <!-- Unit Description -->
+                <div class="mb-4">
+
+                    <label for="type" class="form-label">
+                        Unit Description
+                    </label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="description"
+                        class="form-control"
+                        maxlength="100"
+                        required
+                        value="{{ unit.description if unit else '' }}">
+
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary">
+
+                        <i class="bi bi-check-circle"></i>
+
+                        {% if is_edit %}
+                            Update
+                        {% else %}
+                            Save
+                        {% endif %}
+
+                    </button>
+
+                    <a
+                        href="/unit/"
+                        class="btn btn-secondary">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

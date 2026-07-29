@@ -1,9 +1,11 @@
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session, joinedload
+import math 
 
+from app.models.office import Office
 from app.models.section import Section
 from app.schemas.sections import SectionCreate, SectionUpdate, SectionRead
-
+from app.core.constants import PAGE_SIZE
 def create_section(db: Session, section: SectionCreate):
 
     section_name = section.name.strip()
@@ -44,12 +46,50 @@ def create_section(db: Session, section: SectionCreate):
             db.rollback()
             raise
 
-def get_all_sections(db: Session):
-      return (
-            db.query(Section).
-            filter(Section.is_active == True)
-            .order_by(Section.name).all()
-      )
+def get_all_sections(
+    db: Session,
+    search: str = "",
+    page: int = 1,
+):
+
+    query = (
+        db.query(Section)
+        .options(joinedload(Section.office))
+        .filter(Section.is_active == True)
+    )
+
+    if search:
+
+        search = search.strip()
+
+        query = (
+            query.join(Office)
+            .filter(
+                or_(
+                    Section.code.ilike(f"%{search}%"),
+                    Section.name.ilike(f"%{search}%"),
+                    Office.name.ilike(f"%{search}%"),
+                )
+            )
+        )
+
+    total_records = query.count()
+
+    sections = (
+        query
+        .order_by(Section.name)
+        .offset((page - 1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
+        .all()
+    )
+
+    return {
+        "items": sections,
+        "current_page": page,
+        "page_size": PAGE_SIZE,
+        "total_records": total_records,
+        "total_pages": math.ceil(total_records / PAGE_SIZE) if total_records else 1,
+    }
 
 def get_section_by_id (db: Session, section_id: int):
       return(

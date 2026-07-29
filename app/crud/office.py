@@ -1,8 +1,11 @@
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+import math
 
 from app.models.office import Office
 from app.schemas.office import OfficeCreate, OfficeUpdate
+from app.core.constants import PAGE_SIZE
+
 
 def create_office(db: Session, office: OfficeCreate):
 
@@ -45,13 +48,45 @@ def create_office(db: Session, office: OfficeCreate):
         db.rollback()
         raise
 
-def get_all_offices(db: Session):
 
-    return (db.query(Office)
-            .filter(Office.is_active == True)
-            .order_by(Office.display_order)
+
+def get_all_offices(
+        db: Session,
+        search: str = "",
+        page: int = 1,
+        ):
+
+    query = db.query(Office).filter(Office.is_active == True)
+    
+    if search:
+            search = search.strip()
+    
+            query = query.filter(
+                or_(
+                    Office.code.ilike(f"%{search}%"),
+                    Office.name.ilike(f"%{search}%"),
+                )
+            )
+    
+    total_records = query.count()
+    
+    offices = (
+            query
+            .order_by(Office.name)
+            .offset((page-1) * PAGE_SIZE)
+            .limit(PAGE_SIZE)
             .all()
-    )
+        )
+    
+    return {
+            "items": offices,
+            "current_page": page,
+            "page_size": PAGE_SIZE,
+            "total_records": total_records,
+            "total_pages": math.ceil(total_records / PAGE_SIZE) if total_records else 1,
+        }
+
+    
 
 def get_office_by_id(db: Session, office_id: int):
     return (
@@ -59,6 +94,8 @@ def get_office_by_id(db: Session, office_id: int):
         filter(Office.id == office_id, Office.is_active == True)
         .first()
     )
+
+
 
 def update_office(db: Session, office_id: int, office: OfficeUpdate):
     db_office = get_office_by_id(db, office_id)

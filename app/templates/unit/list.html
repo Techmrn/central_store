@@ -1,7 +1,7 @@
 {% extends "layout/base.html" %}
 
 {% block title %}
-Category Master
+Unit Master
 {% endblock %}
 
 {% block content %}
@@ -23,7 +23,7 @@ Breadcrumb
         </li>
 
         <li class="breadcrumb-item active">
-            Category
+            Unit
         </li>
 
     </ol>
@@ -51,7 +51,7 @@ Search
 
     <div class="card-body">
 
-        <input id="search-input" type="text" class="form-control" placeholder="Search Category" value="{{ search }}">
+        <input id="search-input" type="text" class="form-control" placeholder="Search Unit" value="{{ search }}">
 
     </div>
 
@@ -59,7 +59,7 @@ Search
 
 
 <!-- ==========================================================
-Category Table
+Unit Table
 =========================================================== -->
 
 <div class="card shadow-sm">
@@ -69,7 +69,7 @@ Category Table
         {% include "components/loading_spinner.html" %}
 
         <div id="table-container">
-            {% include "category/table_container.html" %}
+            {% include "unit/table_container.html" %}
 
         </div>
 

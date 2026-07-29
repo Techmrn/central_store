@@ -1,8 +1,10 @@
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+import math
 
 from app.models.unit import Unit
 from app.schemas.unit import UnitCreate, UnitUpdate
+from app.core.constants import PAGE_SIZE
 
 
 def create_unit(db: Session, unit: UnitCreate):
@@ -53,15 +55,45 @@ def create_unit(db: Session, unit: UnitCreate):
         raise
 
 
-def get_all_units(db: Session):
+def get_all_units( 
 
-    return (
-        db.query(Unit)
-        .filter(Unit.is_active == True)
+        db: Session, 
+        search:str = "", # for search item
+        page: int = 1, # for pagination
+    ):
+
+    query = db.query(Unit).filter(Unit.is_active == True) 
+
+    if search:
+        search = search.strip()
+
+        query = query.filter(
+            or_(
+
+                Unit.name.ilike(f"%{search}%"), 
+                Unit.symbol.ilike(f"%{search}%"), 
+            )
+
+        )
+
+    total_records = query.count()
+
+    units= ( 
+        query
+
         .order_by(Unit.name)
+        .offset((page-1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
         .all()
     )
 
+    return {
+        "items": units, 
+        "current_page": page,
+        "page_size": PAGE_SIZE,
+        "total_records": total_records,
+        "total_pages": math.ceil(total_records / PAGE_SIZE) if total_records else 1,
+    }
 
 def get_unit_by_id(db: Session, unit_id: int):
 

@@ -6,29 +6,29 @@ from typing import Optional
 
 from app.core.db import get_db
 from app.core.templates import templates
+from app.models.office import OfficeType
 
-from app.crud.category import (
-    get_all_categories,
-    get_category_by_id,
-    create_category,
-    update_category,
-    delete_category,
+from app.crud.office import (
+    get_all_offices,
+    get_office_by_id,
+    create_office,
+    update_office,
+    delete_office,
 )
-from app.schemas.category import CategoryCreate, CategoryUpdate
-from app.models.enums import Category_Type
+from app.schemas.office import OfficeCreate, OfficeUpdate
 
 router = APIRouter(
-    prefix="/category",
-    tags=["Category UI"],
+    prefix="/office",
+    tags=["Office UI"],
 )
 
 
 # ---------------------------------------------------------
-# Category List
+# Office List
 # ---------------------------------------------------------
 
 @router.get("/", response_class=HTMLResponse)
-def list_categories(
+def list_offices(
     request: Request,
     search: str = Query(default=""),
     page: int = Query(default=1),
@@ -37,7 +37,7 @@ def list_categories(
     db: Session = Depends(get_db),
 ):
 
-    result = get_all_categories(
+    result = get_all_offices(
         db=db,
         search=search,
         page=page,
@@ -45,65 +45,71 @@ def list_categories(
 
     return templates.TemplateResponse(
     request=request,
-    name="category/list.html",
+    name="office/list.html",
     context={
-        "categories": result["items"],
+        "offices": result["items"],
         "pagination": result,
         "search": search,
         "success": success,
         "error": error,
 
-        "page_title": "Category Master",
-        "page_subtitle": "Create and manage item categories",
+        "page_title": "Office Master",
+        "page_subtitle": "Create and manage item offices",
 
-        "new_button_text": "New Category",
-        "new_button_url": "/category/new",
+        "new_button_text": "New Office",
+        "new_button_url": "/office/new",
 
-        "empty_title": "No Categories Found",
-        "empty_message": "No category matches your search.",
-        "empty_button_text": "Add Category",
-        "empty_button_url": "/category/new",
+        "empty_title": "No Offices Found",
+        "empty_message": "No office matches your search.",
+        "empty_button_text": "Add Office",
+        "empty_button_url": "/office/new",
     },
 )
 
 # ---------------------------------------------------------
-# New Category Form
+# New Office Form
 # ---------------------------------------------------------
 
 @router.get(
     "/new",
     response_class=HTMLResponse,
 )
-def new_category(
+def new_office(
     request: Request,
 ):
 
     return templates.TemplateResponse(
         request=request,
-        name="category/form.html",
+        name="office/form.html",
         context={
             "request": request,
-            "page_title": "New Category",
+            "page_title": "New Office",
         },
     )
 
 @router.post("/new")
-def save_category(
+def save_office(
     request: Request,
     code: str = Form(...),
     name: str = Form(...),
-    type: Category_Type = Form(...),
+    office_type: OfficeType = Form(...),
+    display_order: int = Form(...),
+    remarks: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    category = CategoryCreate(
-        code=code,name=name,type=type,
+    office = OfficeCreate(
+        code=code,
+        name=name,
+        office_type=office_type,
+        display_order=display_order,
+        remarks=remarks,
     )
 
     try:
-        create_category(db=db, category=category)
+        create_office(db=db, office=office)
 
         return RedirectResponse(
-            url="/category/?success=Category created successfully",
+            url="/office/?success=Office created successfully",
             status_code=303,
         )
 
@@ -111,114 +117,118 @@ def save_category(
 
         return templates.TemplateResponse(
             request=request,
-            name="category/form.html",
+            name="office/form.html",
             context={
                 "request": request,
-                "page_title": "New Category",
+                "page_title": "New Office",
                 "error": str(e),
-                "category": category,
+                "office": office,
             },
         )
 
-####### Category Update router for UI ##############
+####### Office Update router for UI ##############
 
-#------Form to edit category details and update the same in database
+#------Form to edit office details and update the same in database
 
-@router.get("/{category_id}/edit")
-def edit_category(
-    category_id: int,
+@router.get("/{office_id}/edit")
+def edit_office(
+    office_id: int,
     request: Request,
     db: Session = Depends(get_db),
 ):
-    category = get_category_by_id(db, category_id)
+    office = get_office_by_id(db, office_id)
 
-    if not category:
+    if not office:
         raise HTTPException(
             status_code=404,
-            detail="Category not found."
+            detail="Office not found."
         )
 
     return templates.TemplateResponse(
         request=request,
-        name="category/form.html",
+        name="office/form.html",
         context={
             "request": request,
-            "page_title": "Edit Category",
-            "category": category,
+            "page_title": "Edit Office",
+            "office": office,
             "error": None,
             "is_edit": True,
         },
     )
 
-#_-----------Post request to update the category details in database
+#_-----------Post request to update the office details in database
 
-@router.post("/{category_id}/edit")
-def update_category_ui(
-    category_id: int,
+@router.post("/{office_id}/edit")
+def update_office_ui(
+    office_id: int,
     request: Request,
     code: str = Form(...),
     name: str = Form(...),
-    type: Category_Type = Form(...),
+    office_type: OfficeType = Form(...),
+    display_order: int = Form(...),
+    remarks: str = Form(""),
     db: Session = Depends(get_db),
 ):
 
-    category = CategoryUpdate(
+    office = OfficeUpdate(
         code=code,
         name=name,
-        type=type,
+        office_type=office_type,
+        display_order=display_order,
+        remarks=remarks,
     )
 
     try:
 
-        updated = update_category(
+        updated = update_office(
             db=db,
-            category_id=category_id,
-            category=category,
+            office_id=office_id,
+            office=office,
         )
 
         if updated is None:
             raise HTTPException(
                 status_code=404,
-                detail="Category not found."
+                detail="Office not found."
             )
 
         return RedirectResponse(
-            url="/category/?success=Category updated successfully",
+            url="/office/?success=Office updated successfully",
             status_code=303,
         )
 
     except ValueError as e:
 
-        category.id = category_id
+        office.id = office_id
 
         return templates.TemplateResponse(
             request=request,
-            name="category/form.html",
+            name="office/form.html",
             context={
                 "request": request,
-                "page_title": "Edit Category",
-                "category": category,
+                "page_title": "Edit Office",
+                "office": office,
                 "error": str(e),
                 "is_edit": True,
             },
         )
-#----------Delete category router for UI --------------------
+#----------Delete office router for UI --------------------
 
-@router.post("/{category_id}/delete")
-def delete_category_ui(
-    category_id: int,
+@router.post("/{office_id}/delete")
+def delete_office_ui(
+    office_id: int,
     db: Session = Depends(get_db),
 ):
-    category = delete_category(db, category_id = category_id)
+    office = delete_office(db, office_id = office_id)
 
-    if category is None:
+    if office is None:
         raise HTTPException(
             status_code=404,
-            detail="Category not found."
+            detail="Office not found."
         )
 
     return RedirectResponse(
-        url="/category/?success=Category deleted successfully",
+        url="/office/?success=Office deleted successfully",
         status_code=303,
     )
 
@@ -226,14 +236,14 @@ def delete_category_ui(
 #-------------Table route for live search------------
 
 @router.get("/table", response_class=HTMLResponse)
-def category_table(
+def office_table(
     request: Request,
     search: str = "",
     page: int = 1,
     db: Session = Depends(get_db),
 ):
 
-    result = get_all_categories(
+    result = get_all_offices(
         db=db,
         search=search,
         page=page,
@@ -241,17 +251,17 @@ def category_table(
 
     return templates.TemplateResponse(
         request=request,
-        name="category/table_container.html",
+        name="office/table_container.html",
         context={
             "request": request,
-            "categories": result["items"],
+            "offices": result["items"],
             "pagination": result,
             "search": search,
 
-            "empty_title": "No Categories Found",
-            "empty_message": "No categories are available.",
-            "empty_button_text": "Add Unit",
-            "empty_button_url": "/unit/new",
+            "empty_title": "No Offices Found",
+            "empty_message": "No offices are available.",
+            "empty_button_text": "Add office",
+            "empty_button_url": "/office/new",
         },
     )
     

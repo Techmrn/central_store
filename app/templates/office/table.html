@@ -7,7 +7,7 @@
         </small> -->
 
     </div>
-    <table id="categoryTable" class="table table-hover table-striped align-middle mb-0">
+    <table id="officeTable" class="table table-hover table-striped align-middle mb-0">
 
         <thead class="table-dark">
 
@@ -18,7 +18,7 @@
                 </th>
 
                 <th>
-                    Category Name
+                    Office Name
                 </th>
 
                 <th width="150">
@@ -39,25 +39,25 @@
 
         <tbody>
 
-            {% for category in categories %}
+            {% for office in offices %}
 
             <tr>
 
                 <td>
 
-                    {{ category.code }}
+                    {{ office.code }}
 
                 </td>
 
                 <td>
 
-                    {{ category.name }}
+                    {{ office.name }}
 
                 </td>
 
                 <td>
 
-                    {{ category.type.value }}
+                    {{ office.office_type.value }}
 
                 </td>
 
@@ -73,14 +73,14 @@
 
                 <td>
 
-                    <a href="/category/{{ category.id }}/edit" class="btn btn-warning btn-sm">
+                    <a href="/office/{{ office.id }}/edit" class="btn btn-warning btn-sm">
 
                         <i class="bi bi-pencil-square"></i>
 
                     </a>
 
                     <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
-                        data-bs-target="#deleteModal{{ category.id }}">
+                        data-bs-target="#deleteModal{{ office.id }}">
 
                         <i class="bi bi-trash"></i>
 
@@ -95,7 +95,7 @@
 
             <!------Delete  Modal goes HERE -------->
 
-            <div class="modal fade" id="deleteModal{{ category.id }}" tabindex="-1">
+            <div class="modal fade" id="deleteModal{{ office.id }}" tabindex="-1">
 
                 <div class="modal-dialog">
 
@@ -104,7 +104,7 @@
                         <div class="modal-header">
 
                             <h5 class="modal-title">
-                                Delete Category
+                                Delete Office
                             </h5>
 
                             <button type="button" class="btn-close" data-bs-dismiss="modal">
@@ -116,7 +116,7 @@
 
                             Are you sure you want to delete
 
-                            <strong>{{ category.name }}</strong> ?
+                            <strong>{{ office.name }}</strong> ?
 
                         </div>
 
@@ -128,7 +128,7 @@
 
                             </button>
 
-                            <form method="post" action="/category/{{ category.id }}/delete">
+                            <form method="post" action="/office/{{ office.id }}/delete">
 
                                 <button type="submit" class="btn btn-danger">
 
@@ -152,7 +152,7 @@
 
                 <td colspan="5" class="text-center py-5 text-muted">
 
-                    No Categories Found
+                    No Offices Found
 
                 </td>
 
