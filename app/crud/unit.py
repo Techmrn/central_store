@@ -212,3 +212,15 @@ def delete_unit(
     except Exception:
         db.rollback()
         raise
+
+
+#------------------For Drpdowns----------------
+
+def get_unit_lookup(db: Session):
+
+    return (
+        db.query(Unit)
+        .filter(Unit.is_active == True)
+        .order_by(Unit.name)
+        .all()
+    )

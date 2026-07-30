@@ -1,5 +1,5 @@
 from sqlalchemy import String, Enum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
 from app.models.enums import Category_Type
@@ -24,4 +24,9 @@ class Category(BaseModel):
     type: Mapped[Category_Type] = mapped_column(
         Enum(Category_Type), # from app/models/enums.py
         nullable=False
+    )
+
+    items: Mapped[list["Item"]] = relationship(
+        "Item",
+        back_populates="category"
     )

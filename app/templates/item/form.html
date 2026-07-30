@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <div class="row mb-3">
+        <div class="col">
+            <h3>{{ page_title }}</h3>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    {% if item_id %}
+    <form method="post" action="/item/{{ item_id }}/edit">
+    {% else %}
+    <form method="post" action="/item/new">
+    {% endif %}
+
+        <div class="card shadow-sm">
+
+            <div class="card-body">
+
+                <div class="row">
+
+                    <!-- Item Code -->
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">
+                            Item Code <span class="text-danger">*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            name="code"
+                            class="form-control"
+                            maxlength="50"
+                            required
+                            autofocus
+                            value="{{ item.code if item else '' }}">
+                    </div>
+
+                    <!-- Item Name -->
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label">
+                            Item Name <span class="text-danger">*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            name="name"
+                            class="form-control"
+                            maxlength="200"
+                            required
+                            value="{{ item.name if item else '' }}">
+                    </div>
+
+                    <!-- Category -->
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label">
+                            Category <span class="text-danger">*</span>
+                        </label>
+
+                        <select
+                            name="category_id"
+                            class="form-select"
+                            required>
+
+                            <option value="">Select Category</option>
+
+                            {% for category in categories %}
+                            <option
+                                value="{{ category.id }}"
+                                {% if item and item.category_id == category.id %}
+                                selected
+                                {% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+
+                        </select>
+                    </div>
+
+                    <!-- Unit -->
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label">
+                            Unit <span class="text-danger">*</span>
+                        </label>
+
+                        <select
+                            name="unit_id"
+                            class="form-select"
+                            required>
+
+                            <option value="">Select Unit</option>
+
+                            {% for unit in units %}
+                            <option
+                                value="{{ unit.id }}"
+                                {% if item and item.unit_id == unit.id %}
+                                selected
+                                {% endif %}>
+                                {{ unit.name }}
+                            </option>
+                            {% endfor %}
+
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="row">
+
+                    <!-- Specification -->
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">
+                            Specification
+                        </label>
+
+                        <textarea
+                            name="specification"
+                            class="form-control"
+                            rows="3">{{ item.specification if item else '' }}</textarea>
+                    </div>
+
+                </div>
+
+                <div class="row">
+
+                    <!-- Remarks -->
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">
+                            Remarks
+                        </label>
+
+                        <textarea
+                            name="remarks"
+                            class="form-control"
+                            rows="2">{{ item.remarks if item else '' }}</textarea>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card-footer d-flex justify-content-between">
+
+                <a
+                    href="/item/"
+                    class="btn btn-secondary">
+                    Cancel
+                </a>
+
+                <button
+                    type="submit"
+                    class="btn btn-primary">
+
+                    {% if item_id %}
+                        Update Item
+                    {% else %}
+                        Save Item
+                    {% endif %}
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

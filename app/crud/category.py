@@ -266,3 +266,15 @@ def delete_category(
     except Exception:
         db.rollback()
         raise
+
+
+#-----------------For dropdowns--------------------
+
+def get_category_lookup(db: Session):
+
+    return (
+        db.query(Category)
+        .filter(Category.is_active == True)
+        .order_by(Category.name)
+        .all()
+    )

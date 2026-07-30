@@ -1,0 +1,11 @@
+{% include "components/table_info.html" %}
+
+{% if items %}
+
+    {% include "item/table.html" %}
+
+{% else %}
+
+    {% include "components/empty_state.html" %}
+
+{% endif %}

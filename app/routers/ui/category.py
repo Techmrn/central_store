@@ -145,6 +145,7 @@ def edit_category(
             "request": request,
             "page_title": "Edit Category",
             "category": category,
+            "category_id": category.id,
             "error": None,
             "is_edit": True,
         },
@@ -189,8 +190,6 @@ def update_category_ui(
 
     except ValueError as e:
 
-        category.id = category_id
-
         return templates.TemplateResponse(
             request=request,
             name="category/form.html",
@@ -198,6 +197,7 @@ def update_category_ui(
                 "request": request,
                 "page_title": "Edit Category",
                 "category": category,
+                "category_id": category_id,
                 "error": str(e),
                 "is_edit": True,
             },

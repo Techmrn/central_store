@@ -146,6 +146,7 @@ def edit_unit(
             "request": request,
             "page_title": "Edit Unit",
             "unit": unit,
+            "unit_id": unit.id,
             "error": None,
             "is_edit": True,
         },
@@ -190,7 +191,6 @@ def update_unit_ui(
 
     except ValueError as e:
 
-        unit.id = unit_id
 
         return templates.TemplateResponse(
             request=request,
@@ -199,6 +199,7 @@ def update_unit_ui(
                 "request": request,
                 "page_title": "Edit Unit",
                 "unit": unit,
+                "unit_id": unit_id,
                 "error": str(e),
                 "is_edit": True,
             },

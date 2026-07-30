@@ -1,10 +1,12 @@
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+import math
 
 from app.models.item import Item
 from app.models.category import Category
 from app.models.unit import Unit
 from app.schemas.item import ItemCreate, ItemUpdate
+from app.core.constants import PAGE_SIZE
 
 def create_item(db: Session, item: ItemCreate):
     item_code = item.code.strip().upper()
@@ -69,14 +71,52 @@ def create_item(db: Session, item: ItemCreate):
         raise
 
 
-def get_all_items(db: Session):
-
-    return (
+def get_all_items(
+        db: Session,
+        search: str = "",
+        page: int = 1,
+    ):
+#----------------Joint Query-------------------------
+    query = (
         db.query(Item)
-        .filter(Item.is_active == True)
+        .join(Category, Item.category_id == Category.id)
+        .join(Unit, Item.unit_id == Unit.id)
+        .filter(
+            Item.is_active == True,
+            Category.is_active == True,
+            Unit.is_active == True,
+        )
+    )
+
+    if search:
+        search = search.strip()
+
+        query = query.filter(
+            or_(
+                Item.code.ilike(f"%{search}%"),
+                Item.name.ilike(f"%{search}%"),
+                Category.name.ilike(f"%{search}%"),
+                Unit.name.ilike(f"%{search}%"),
+            )
+        )
+
+    total_records = query.count()
+
+    items = (
+        query
         .order_by(Item.name)
+        .offset((page-1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
         .all()
     )
+
+    return {
+        "items": items,
+        "current_page": page,
+        "page_size": PAGE_SIZE,
+        "total_records": total_records,
+        "total_pages": math.ceil(total_records / PAGE_SIZE) if total_records else 1,
+    }
 
 
 def get_item_by_id(db: Session, item_id: int):

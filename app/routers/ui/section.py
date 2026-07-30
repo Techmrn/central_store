@@ -157,6 +157,7 @@ def edit_section(
             "page_title": "Edit Section",
             "section": section,
             "offices": offices,
+            "section_id": section.id,
             "error": None,
             "is_edit": True,
         },
@@ -203,7 +204,7 @@ def update_section_ui(
 
     except ValueError as e:
 
-        section.id = section_id
+        
         offices = get_all_offices(db=db)["items"]
 
         return templates.TemplateResponse(
@@ -214,6 +215,7 @@ def update_section_ui(
                 "page_title": "Edit Section",
                 "section": section,
                 "offices": offices,
+                "section_id": section_id,
                 "error": str(e),
                 "is_edit": True,
             },

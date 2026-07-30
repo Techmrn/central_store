@@ -151,6 +151,7 @@ def edit_office(
             "request": request,
             "page_title": "Edit Office",
             "office": office,
+            "office_id": office.id,
             "error": None,
             "is_edit": True,
         },
@@ -199,7 +200,6 @@ def update_office_ui(
 
     except ValueError as e:
 
-        office.id = office_id
 
         return templates.TemplateResponse(
             request=request,
@@ -208,6 +208,7 @@ def update_office_ui(
                 "request": request,
                 "page_title": "Edit Office",
                 "office": office,
+                "office_id": office_id,
                 "error": str(e),
                 "is_edit": True,
             },

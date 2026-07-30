@@ -50,8 +50,7 @@
 
             <form
                 method="post"
-                action="{% if is_edit %}/category/{{ category.id }}/edit{% else %}/category/new{% endif %}">
-                <!-- Category Code -->
+                action="{% if is_edit %}/category/{{ category_id }}/edit{% else %}/category/new{% endif %}">
                 <div class="mb-3">
                     <label for="code" class="form-label">
                         Category Code

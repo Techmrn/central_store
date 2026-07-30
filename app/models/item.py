@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import BaseModel
 
 
+
 class Item(BaseModel):
     __tablename__ = "items"
 
@@ -42,5 +43,12 @@ class Item(BaseModel):
         nullable=True,
     )
 
-    category = relationship("Category")
-    unit = relationship("Unit")
+    category: Mapped["Category"] = relationship(
+        "Category",
+        back_populates="items",
+    )
+
+    unit: Mapped["Unit"] = relationship(
+        "Unit",
+        back_populates="items",
+    )
