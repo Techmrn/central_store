@@ -1,0 +1,139 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/financial-year/">Financial Year</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {{ page_title }}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h4 class="mb-0">{{ page_title }}</h4>
+        </div>
+
+        <div class="card-body">
+
+            {% if error %}
+            <div class="alert alert-danger">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="post"
+                  action="{% if financial_year_id %}/financial-year/{{ financial_year_id }}/edit{% else %}/financial-year/new{% endif %}">
+
+                <!-- Start Date -->
+                <div class="mb-3">
+                    <label class="form-label">Start Date</label>
+
+                    <input
+                        type="date"
+                        name="start_date"
+                        class="form-control"
+                        required
+                        value="{{ financial_year.start_date.isoformat() if financial_year else '' }}">
+                </div>
+
+                <!-- End Date -->
+                <div class="mb-3">
+                    <label class="form-label">End Date</label>
+
+                    <input
+                        type="date"
+                        name="end_date"
+                        class="form-control"
+                        required
+                        value="{{ financial_year.end_date.isoformat() if financial_year else '' }}">
+                </div>
+
+                <!-- Year Name (display only) -->
+                {% if financial_year %}
+                <div class="mb-3">
+                    <label class="form-label">Year Name</label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        value="{{ financial_year.year_name }}"
+                        readonly>
+                </div>
+                {% endif %}
+
+                <!-- Is Current -->
+                <div class="mb-3 form-check">
+                    <input
+                        type="checkbox"
+                        name="is_current"
+                        class="form-check-input"
+                        id="is_current"
+                        value="True"
+                        {% if financial_year and financial_year.is_current %}checked{% endif %}>
+
+                    <label class="form-check-label" for="is_current">
+                        Set as Current Financial Year
+                    </label>
+                </div>
+
+                <!-- Is Closed -->
+                <div class="mb-4 form-check">
+                    <input
+                        type="checkbox"
+                        name="is_closed"
+                        class="form-check-input"
+                        id="is_closed"
+                        value="True"
+                        {% if financial_year and financial_year.is_closed %}checked{% endif %}>
+
+                    <label class="form-check-label" for="is_closed">
+                        Closed
+                    </label>
+                </div>
+
+                <div class="d-flex gap-2">
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i>
+
+                        {% if financial_year_id %}
+                            Update
+                        {% else %}
+                            Save
+                        {% endif %}
+                    </button>
+
+                    <a href="/financial-year/" class="btn btn-secondary">
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

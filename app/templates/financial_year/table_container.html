@@ -1,0 +1,11 @@
+{% include "components/table_info.html" %}
+
+{% if financial_years %}
+
+    {% include "financial_year/table.html" %}
+
+{% else %}
+
+    {% include "components/empty_state.html" %}
+
+{% endif %}

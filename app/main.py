@@ -16,6 +16,7 @@ from app.routers.ui import unit
 from app.routers.ui import office
 from app.routers.ui import section
 from app.routers.ui import item
+from app.routers.ui import financial_year
 
 
 app = FastAPI(
@@ -36,6 +37,7 @@ app.include_router(unit.router) # adding ui of unit master
 app.include_router(office.router) # adding ui of office master
 app.include_router(section.router) # adding ui of Section master
 app.include_router(item.router) # adding ui of Items master
+app.include_router(financial_year.router) # adding ui of financial year master
 
 
 app.mount(

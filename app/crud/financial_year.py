@@ -1,11 +1,13 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
+import math
 
 from app.models.financial_year import FinancialYear
 from app.schemas.financial_year import (
     FinancialYearCreate,
     FinancialYearUpdate,
 )
+from app.core.constants import PAGE_SIZE
 
 
 def generate_year_name(start_date, end_date):
@@ -148,3 +150,37 @@ def delete_financial_year(
     db.refresh(db_financial_year)
 
     return db_financial_year
+
+
+def get_all_financial_years_paginated(
+    db: Session,
+    search: str = "",
+    page: int = 1,
+):
+    query = db.query(FinancialYear).filter(FinancialYear.is_active == True)
+
+    if search:
+        search = search.strip()
+        query = query.filter(
+            or_(
+                FinancialYear.year_name.ilike(f"%{search}%"),
+            )
+        )
+
+    total_records = query.count()
+
+    items = (
+        query
+        .order_by(FinancialYear.start_date.desc())
+        .offset((page - 1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
+        .all()
+    )
+
+    return {
+        "items": items,
+        "current_page": page,
+        "page_size": PAGE_SIZE,
+        "total_records": total_records,
+        "total_pages": math.ceil(total_records / PAGE_SIZE) if total_records else 1,
+    }
