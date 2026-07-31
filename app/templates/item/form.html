@@ -1,179 +1,159 @@
-{% extends "base.html" %}
+{% extends "layout/base.html" %}
 
-{% block title %}{{ page_title }}{% endblock %}
+{% block title %}
+{{ page_title }}
+{% endblock %}
 
 {% block content %}
 
 <div class="container-fluid">
 
-    <div class="row mb-3">
-        <div class="col">
-            <h3>{{ page_title }}</h3>
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/item/">Item</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {{ page_title }}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h4 class="mb-0">{{ page_title }}</h4>
         </div>
-    </div>
 
-    {% if error %}
-    <div class="alert alert-danger">
-        {{ error }}
-    </div>
-    {% endif %}
+        <div class="card-body">
 
-    {% if item_id %}
-    <form method="post" action="/item/{{ item_id }}/edit">
-    {% else %}
-    <form method="post" action="/item/new">
-    {% endif %}
-
-        <div class="card shadow-sm">
-
-            <div class="card-body">
-
-                <div class="row">
-
-                    <!-- Item Code -->
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label">
-                            Item Code <span class="text-danger">*</span>
-                        </label>
-
-                        <input
-                            type="text"
-                            name="code"
-                            class="form-control"
-                            maxlength="50"
-                            required
-                            autofocus
-                            value="{{ item.code if item else '' }}">
-                    </div>
-
-                    <!-- Item Name -->
-                    <div class="col-md-5 mb-3">
-                        <label class="form-label">
-                            Item Name <span class="text-danger">*</span>
-                        </label>
-
-                        <input
-                            type="text"
-                            name="name"
-                            class="form-control"
-                            maxlength="200"
-                            required
-                            value="{{ item.name if item else '' }}">
-                    </div>
-
-                    <!-- Category -->
-                    <div class="col-md-2 mb-3">
-                        <label class="form-label">
-                            Category <span class="text-danger">*</span>
-                        </label>
-
-                        <select
-                            name="category_id"
-                            class="form-select"
-                            required>
-
-                            <option value="">Select Category</option>
-
-                            {% for category in categories %}
-                            <option
-                                value="{{ category.id }}"
-                                {% if item and item.category_id == category.id %}
-                                selected
-                                {% endif %}>
-                                {{ category.name }}
-                            </option>
-                            {% endfor %}
-
-                        </select>
-                    </div>
-
-                    <!-- Unit -->
-                    <div class="col-md-2 mb-3">
-                        <label class="form-label">
-                            Unit <span class="text-danger">*</span>
-                        </label>
-
-                        <select
-                            name="unit_id"
-                            class="form-select"
-                            required>
-
-                            <option value="">Select Unit</option>
-
-                            {% for unit in units %}
-                            <option
-                                value="{{ unit.id }}"
-                                {% if item and item.unit_id == unit.id %}
-                                selected
-                                {% endif %}>
-                                {{ unit.name }}
-                            </option>
-                            {% endfor %}
-
-                        </select>
-                    </div>
-
-                </div>
-
-                <div class="row">
-
-                    <!-- Specification -->
-                    <div class="col-md-12 mb-3">
-                        <label class="form-label">
-                            Specification
-                        </label>
-
-                        <textarea
-                            name="specification"
-                            class="form-control"
-                            rows="3">{{ item.specification if item else '' }}</textarea>
-                    </div>
-
-                </div>
-
-                <div class="row">
-
-                    <!-- Remarks -->
-                    <div class="col-md-12 mb-3">
-                        <label class="form-label">
-                            Remarks
-                        </label>
-
-                        <textarea
-                            name="remarks"
-                            class="form-control"
-                            rows="2">{{ item.remarks if item else '' }}</textarea>
-                    </div>
-
-                </div>
-
+            {% if error %}
+            <div class="alert alert-danger">
+                {{ error }}
             </div>
+            {% endif %}
 
-            <div class="card-footer d-flex justify-content-between">
+            <form method="post"
+                  action="{% if item_id %}/item/{{ item_id }}/edit{% else %}/item/new{% endif %}">
 
-                <a
-                    href="/item/"
-                    class="btn btn-secondary">
-                    Cancel
-                </a>
+                <!-- Item Code -->
+                <div class="mb-3">
+                    <label class="form-label">Item Code</label>
 
-                <button
-                    type="submit"
-                    class="btn btn-primary">
+                    <input
+                        type="text"
+                        name="code"
+                        class="form-control"
+                        maxlength="30"
+                        required
+                        value="{{ item.code if item else '' }}">
+                </div>
 
-                    {% if item_id %}
-                        Update Item
-                    {% else %}
-                        Save Item
-                    {% endif %}
+                <!-- Item Name -->
+                <div class="mb-3">
+                    <label class="form-label">Item Name</label>
 
-                </button>
+                    <input
+                        type="text"
+                        name="name"
+                        class="form-control"
+                        maxlength="150"
+                        required
+                        value="{{ item.name if item else '' }}">
+                </div>
 
-            </div>
+                <!-- Category -->
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+
+                    <select
+                        name="category_id"
+                        class="form-select"
+                        required>
+
+                        <option value="">Select Category</option>
+
+                        {% for category in categories %}
+                        <option value="{{ category.id }}"
+                            {% if item and item.category_id == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <!-- Unit -->
+                <div class="mb-3">
+                    <label class="form-label">Unit</label>
+
+                    <select
+                        name="unit_id"
+                        class="form-select"
+                        required>
+
+                        <option value="">Select Unit</option>
+
+                        {% for unit in units %}
+                        <option value="{{ unit.id }}"
+                            {% if item and item.unit_id == unit.id %}selected{% endif %}>
+                            {{ unit.name }}
+                        </option>
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <!-- Specification -->
+                <div class="mb-3">
+                    <label class="form-label">Specification</label>
+
+                    <textarea
+                        name="specification"
+                        rows="3"
+                        class="form-control">{{ item.specification if item else '' }}</textarea>
+                </div>
+
+                <!-- Remarks -->
+                <div class="mb-4">
+                    <label class="form-label">Remarks</label>
+
+                    <textarea
+                        name="remarks"
+                        rows="3"
+                        class="form-control">{{ item.remarks if item else '' }}</textarea>
+                </div>
+
+                <div class="d-flex gap-2">
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i>
+
+                        {% if item_id %}
+                            Update
+                        {% else %}
+                            Save
+                        {% endif %}
+                    </button>
+
+                    <a href="/item/" class="btn btn-secondary">
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
 
         </div>
 
-    </form>
+    </div>
 
 </div>
 

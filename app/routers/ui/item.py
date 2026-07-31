@@ -56,6 +56,7 @@ def list_items(
             "search": search,
             "success": success,
             "error": error,
+            "module_name": "Items",
 
             "page_title": "Item Master",
             "page_subtitle": "Create and manage inventory items",
@@ -297,6 +298,11 @@ def item_table(
             "items": result["items"],
             "pagination": result,
             "search": search,
+            "module_name": "Items",
+            "empty_title": "No Items Found",
+            "empty_message": "No items are available.",
+            "empty_button_text": "Add Item",
+            "empty_button_url": "/item/new",
         },
     )
 
