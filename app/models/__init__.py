@@ -5,3 +5,4 @@ from .section import Section
 from .financial_year import FinancialYear
 from .item import Item
 from .opening_stock import OpeningStock
+from .role import Role
