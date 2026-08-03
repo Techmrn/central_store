@@ -9,6 +9,7 @@ from app.routers.financial_year import router as financial_year_router
 from app.routers.item import router as item_router
 from app.routers.opening_stock import router as opening_stock_router
 from app.routers.role import router as role_router
+from app.routers.user import router as user_router
 
 #importing jinja templates
 from app.routers.ui import dashboard   # Including HTML Template 
@@ -18,6 +19,7 @@ from app.routers.ui import office
 from app.routers.ui import section
 from app.routers.ui import item
 from app.routers.ui import financial_year
+
 
 
 app = FastAPI(
@@ -35,6 +37,7 @@ app.include_router(financial_year_router)
 app.include_router(item_router)
 app.include_router(opening_stock_router)
 app.include_router(role_router)
+app.include_router(user_router)
 
 #ui api s
 
