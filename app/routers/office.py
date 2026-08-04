@@ -17,6 +17,8 @@ from app.schemas.office import (
     OfficeUpdate,
 )
 
+from app.schemas.common import PaginatedResponse
+
 router = APIRouter(
     prefix="/offices",
     tags=["Offices"],
@@ -39,7 +41,7 @@ def add_office(office: OfficeCreate, db: Session = Depends(get_db)):
 
 @router.get(
     "/",
-    response_model=list[OfficeRead],
+    response_model=PaginatedResponse[OfficeRead],
     summary="Get All Offices"
 )
 def list_offices(db: Session = Depends(get_db)):

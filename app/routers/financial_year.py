@@ -9,6 +9,8 @@ from app.crud.financial_year import (
     update_financial_year,
     delete_financial_year,
 )
+
+from app.schemas.common import PaginatedResponse
 from app.schemas.financial_year import (
     FinancialYearCreate,
     FinancialYearUpdate,
@@ -35,7 +37,7 @@ def add_financial_year(
         )
 
 
-@router.get("/", response_model=list[FinancialYearRead])
+@router.get("/", response_model=PaginatedResponse[FinancialYearRead])
 def get_financial_years(
     db: Session = Depends(get_db),
 ):

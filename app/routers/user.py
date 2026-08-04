@@ -1,15 +1,4 @@
-"""
-Starter for app/routers/user.py
 
-Endpoints:
-POST    /users/
-GET     /users/
-GET     /users/{user_id}
-PUT     /users/{user_id}
-DELETE  /users/{user_id}
-
-Match the style of role.py.
-"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -23,6 +12,8 @@ from app.crud.user import (
     delete_user,
 )
 
+
+from app.schemas.common import PaginatedResponse
 from app.schemas.user import (
     UserCreate,
     UserRead,
@@ -57,7 +48,7 @@ def add_user(
 
 @router.get(
     "/",
-    response_model=list[UserRead],
+    response_model=PaginatedResponse[UserRead],
     summary="Get All Users",
 )
 def list_users(

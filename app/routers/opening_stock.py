@@ -9,6 +9,8 @@ from app.crud.opening_stock import (
     update_opening_stock,
     delete_opening_stock,
 )
+
+from app.schemas.common import PaginatedResponse
 from app.schemas.opening_stock import (
     OpeningStockCreate,
     OpeningStockUpdate,
@@ -39,7 +41,7 @@ def add_opening_stock(
         )
 
 
-@router.get("/", response_model=list[OpeningStockRead])
+@router.get("/", response_model=PaginatedResponse[OpeningStockRead])
 def get_opening_stocks(
     db: Session = Depends(get_db),
 ):

@@ -9,6 +9,8 @@ from app.crud.item import (
     update_item,
     delete_item,
 )
+
+from app.schemas.common import PaginatedResponse
 from app.schemas.item import (
     ItemCreate,
     ItemUpdate,
@@ -31,7 +33,7 @@ def add_item(item: ItemCreate, db: Session = Depends(get_db)):
         )
 
 
-@router.get("/", response_model=list[ItemRead])
+@router.get("/", response_model=PaginatedResponse[ItemRead])
 def get_items(
     db: Session = Depends(get_db),
 ):

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.schemas.common import PaginatedResponse
 
 from app.crud.category import (
     create_category,
@@ -53,7 +54,7 @@ def add_category(
 
 @router.get(
     "/",
-    response_model=list[CategoryRead],
+    response_model=PaginatedResponse[CategoryRead],
     summary="Get All Categories",
 )
 def list_categories(

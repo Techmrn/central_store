@@ -10,6 +10,7 @@ from app.crud.unit import (
     delete_unit,
 )
 
+from app.schemas.common import PaginatedResponse
 from app.schemas.unit import (
     UnitCreate,
     UnitRead,
@@ -41,7 +42,7 @@ def add_unit(
         )
 
 
-@router.get("/", response_model=list[UnitRead])
+@router.get("/", response_model=PaginatedResponse[UnitRead])
 def list_units(db: Session = Depends(get_db)):
     return get_all_units(db)
 

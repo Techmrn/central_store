@@ -11,6 +11,8 @@ from app.crud.role import (
     delete_role,
 )
 
+
+from app.schemas.common import PaginatedResponse
 from app.schemas.role import (
     RoleCreate,
     RoleRead,

@@ -11,6 +11,8 @@ from app.crud.section import (
     delete_section,
 )
 
+from app.schemas.common import PaginatedResponse
+
 from app.schemas.sections import (
     SectionCreate,
     SectionRead,
@@ -44,7 +46,7 @@ def add_section(
 
 @router.get(
     "/",
-    response_model=list[SectionRead],
+    response_model=PaginatedResponse[SectionRead],
     summary="Get All Sections",
 )
 def list_sections(db: Session = Depends(get_db)):

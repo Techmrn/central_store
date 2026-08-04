@@ -1,29 +1,6 @@
-"""
-Starter for app/crud/user.py
-
-Implement:
-- create_user() (as discussed)
-- get_all_users()
-- get_user_by_id()
-- get_user_by_username()
-- update_user()
-- delete_user()
-
-Validation:
-- PEN (code): numeric, 6/7 digits
-- Username unique (lowercase)
-- Office exists
-- Section belongs to selected office
-- Soft delete
-- Temporary password_hash=user.password
-"""
-
-import math
-
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
-from app.core.constants import PAGE_SIZE
 
 from app.models.user import User
 from app.models.office import Office
@@ -34,62 +11,124 @@ from app.schemas.user import (
     UserUpdate,
 )
 
+from app.core.pagination import get_pagination_result
 
-def create_user(db: Session, user: UserCreate):
 
-    code = user.code.strip()
-    username = user.username.strip().lower()
-    full_name = user.full_name.strip().title()
-    designation = user.designation.strip() if user.designation else None
-    email = user.email.strip().lower() if user.email else None
-    mobile = user.mobile.strip() if user.mobile else None
-    remarks = user.remarks.strip() if user.remarks else None
+# ---------------------------------------------------------------
+# Helper Functions
+# ---------------------------------------------------------------
 
-    # ----------------------------------------------------
+def normalize_user_code(code: str) -> str:
+    """
+    Returns normalized PEN number.
+    """
+    return code.strip()
+
+
+def normalize_username(username: str) -> str:
+    """
+    Returns lowercase username.
+    """
+    return username.strip().lower()
+
+
+def normalize_full_name(name: str) -> str:
+    """
+    Returns formatted display name.
+    """
+    return name.strip().title()
+
+
+# ---------------------------------------------------------------
+# Create
+# ---------------------------------------------------------------
+
+def create_user(
+    db: Session,
+    user: UserCreate,
+):
+
+    code = normalize_user_code(user.code)
+    username = normalize_username(user.username)
+    full_name = normalize_full_name(user.full_name)
+
+    designation = (
+        user.designation.strip()
+        if user.designation
+        else None
+    )
+
+    email = (
+        user.email.strip().lower()
+        if user.email
+        else None
+    )
+
+    mobile = (
+        user.mobile.strip()
+        if user.mobile
+        else None
+    )
+
+    remarks = (
+        user.remarks.strip()
+        if user.remarks
+        else None
+    )
+
+    # -----------------------------------------------------------
     # Validate PEN Number
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
     if not code.isdigit():
-        raise ValueError("PEN Number must contain only digits.")
+        raise ValueError(
+            "PEN Number must contain only digits."
+        )
 
     if len(code) not in (6, 7):
-        raise ValueError("PEN Number must be 6 or 7 digits.")
+        raise ValueError(
+            "PEN Number must be 6 or 7 digits."
+        )
 
-    # ----------------------------------------------------
-    # Duplicate Code
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
+    # Duplicate PEN
+    # -----------------------------------------------------------
 
-    existing_code = (
+    duplicate_code = (
         db.query(User)
         .filter(
-            User.code == code,
-            User.is_active == True,
+            func.trim(User.code) == code,
         )
         .first()
     )
 
-    if existing_code:
-        raise ValueError("PEN Number already exists.")
+    if duplicate_code:
+        raise ValueError(
+            "PEN Number already exists."
+        )
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Duplicate Username
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    existing_username = (
+    duplicate_username = (
         db.query(User)
         .filter(
-            func.lower(User.username) == username,
+            func.lower(func.trim(User.username))
+            == username,
             User.is_active == True,
         )
         .first()
     )
 
-    if existing_username:
-        raise ValueError("Username already exists.")
+    if duplicate_username:
+        raise ValueError(
+            "Username already exists."
+        )
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Validate Office
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
     office = (
         db.query(Office)
@@ -100,12 +139,14 @@ def create_user(db: Session, user: UserCreate):
         .first()
     )
 
-    if not office:
-        raise ValueError("Invalid office selected.")
+    if office is None:
+        raise ValueError(
+            "Invalid office selected."
+        )
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Validate Section
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
     if user.section_id is not None:
 
@@ -119,19 +160,15 @@ def create_user(db: Session, user: UserCreate):
             .first()
         )
 
-        if not section:
+        if section is None:
             raise ValueError(
                 "Selected section does not belong to the selected office."
             )
 
-    # ----------------------------------------------------
-    # Create User
-    # ----------------------------------------------------
-
     db_user = User(
         code=code,
         username=username,
-        password_hash=user.password,      # Will be hashed later
+        password_hash=user.password,      # Temporary
         full_name=full_name,
         designation=designation,
         office_id=user.office_id,
@@ -141,21 +178,31 @@ def create_user(db: Session, user: UserCreate):
         remarks=remarks,
     )
 
-    db.add(db_user)
-
     try:
+
+        db.add(db_user)
         db.commit()
         db.refresh(db_user)
+
         return db_user
 
+    except IntegrityError:
+
+        db.rollback()
+
+        raise ValueError(
+            "PEN Number already exists."
+        )
+
     except Exception:
+
         db.rollback()
         raise
 
-# ----------------------------------------------------
-# Get all User
-# ----------------------------------------------------
 
+    # ---------------------------------------------------------------
+# Read All
+# ---------------------------------------------------------------
 
 def get_all_users(
     db: Session,
@@ -193,30 +240,17 @@ def get_all_users(
             )
         )
 
-    total_records = query.count()
+    query = query.order_by(User.full_name)
 
-    users = (
-        query
-        .order_by(User.full_name)
-        .offset((page - 1) * PAGE_SIZE)
-        .limit(PAGE_SIZE)
-        .all()
+    return get_pagination_result(
+        query=query,
+        page=page,
     )
 
-    return {
-        "items": users,
-        "current_page": page,
-        "page_size": PAGE_SIZE,
-        "total_records": total_records,
-        "total_pages": math.ceil(total_records / PAGE_SIZE)
-        if total_records
-        else 1,
-    }
 
-
-#------------------------------------------------------------
-#       Get by USER NAME & ID
-#------------------------------------------------------------
+# ---------------------------------------------------------------
+# Read One
+# ---------------------------------------------------------------
 
 def get_user_by_id(
     db: Session,
@@ -233,25 +267,29 @@ def get_user_by_id(
     )
 
 
+# ---------------------------------------------------------------
+# Read by Username
+# ---------------------------------------------------------------
 
 def get_user_by_username(
     db: Session,
     username: str,
 ):
 
-    username = username.strip().lower()
+    username = normalize_username(username)
 
     return (
         db.query(User)
         .filter(
-            func.lower(User.username) == username,
+            func.lower(func.trim(User.username)) == username,
             User.is_active == True,
         )
         .first()
     )
 
-#************* UPDATE USER ********************************
-#-----------------------------------------------------------
+# ---------------------------------------------------------------
+# Update
+# ---------------------------------------------------------------
 
 def update_user(
     db: Session,
@@ -259,171 +297,256 @@ def update_user(
     user: UserUpdate,
 ):
 
-    db_user = get_user_by_id(db, user_id)
+    db_user = (
+        db.query(User)
+        .filter(
+            User.id == user_id,
+            User.is_active == True,
+        )
+        .first()
+    )
 
-    if not db_user:
-        raise ValueError("User not found.")
+    if db_user is None:
+        return None
 
-    # ----------------------------------------------------
+    update_data = user.model_dump(exclude_unset=True)
+
+    # -----------------------------------------------------------
     # PEN Number
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.code is not None:
+    if "code" in update_data:
 
-        code = user.code.strip()
+        code = normalize_user_code(update_data["code"])
 
         if not code.isdigit():
-            raise ValueError("PEN Number must contain only digits.")
+            raise ValueError(
+                "PEN Number must contain only digits."
+            )
 
         if len(code) not in (6, 7):
-            raise ValueError("PEN Number must be 6 or 7 digits.")
+            raise ValueError(
+                "PEN Number must be 6 or 7 digits."
+            )
 
-        existing_code = (
+        duplicate = (
             db.query(User)
             .filter(
-                User.code == code,
+                func.trim(User.code) == code,
                 User.id != user_id,
-                User.is_active == True,
             )
             .first()
         )
 
-        if existing_code:
-            raise ValueError("PEN Number already exists.")
+        if duplicate:
+            raise ValueError(
+                "PEN Number already exists."
+            )
 
         db_user.code = code
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Username
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.username is not None:
+    if "username" in update_data:
 
-        username = user.username.strip().lower()
+        username = normalize_username(
+            update_data["username"]
+        )
 
-        existing_username = (
+        duplicate = (
             db.query(User)
             .filter(
-                func.lower(User.username) == username,
+                func.lower(func.trim(User.username))
+                == username,
                 User.id != user_id,
                 User.is_active == True,
             )
             .first()
         )
 
-        if existing_username:
-            raise ValueError("Username already exists.")
+        if duplicate:
+            raise ValueError(
+                "Username already exists."
+            )
 
         db_user.username = username
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Password
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.password:
+    if "password" in update_data:
 
-        # Later replace with password hashing
-        db_user.password_hash = user.password
+        # Replace with password hashing later
+        db_user.password_hash = update_data["password"]
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Full Name
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.full_name is not None:
-        db_user.full_name = user.full_name.strip().title()
+    if "full_name" in update_data:
 
-    # ----------------------------------------------------
+        db_user.full_name = normalize_full_name(
+            update_data["full_name"]
+        )
+
+    # -----------------------------------------------------------
     # Designation
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.designation is not None:
+    if "designation" in update_data:
+
+        designation = update_data["designation"]
+
         db_user.designation = (
-            user.designation.strip()
-            if user.designation
+            designation.strip()
+            if designation
             else None
         )
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Office
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.office_id is not None:
+    if "office_id" in update_data:
 
         office = (
             db.query(Office)
             .filter(
-                Office.id == user.office_id,
+                Office.id == update_data["office_id"],
                 Office.is_active == True,
             )
             .first()
         )
 
-        if not office:
-            raise ValueError("Invalid office selected.")
+        if office is None:
+            raise ValueError(
+                "Invalid office selected."
+            )
 
-        db_user.office_id = user.office_id
+        db_user.office_id = update_data["office_id"]
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Section
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.section_id is not None:
+    if "section_id" in update_data:
 
         office_id = (
-            user.office_id
-            if user.office_id is not None
+            update_data["office_id"]
+            if "office_id" in update_data
             else db_user.office_id
         )
 
-        section = (
-            db.query(Section)
-            .filter(
-                Section.id == user.section_id,
-                Section.office_id == office_id,
-                Section.is_active == True,
+        if update_data["section_id"] is None:
+
+            db_user.section_id = None
+
+        else:
+
+            section = (
+                db.query(Section)
+                .filter(
+                    Section.id == update_data["section_id"],
+                    Section.office_id == office_id,
+                    Section.is_active == True,
+                )
+                .first()
             )
-            .first()
-        )
 
-        if not section:
-            raise ValueError(
-                "Selected section does not belong to the selected office."
-            )
+            if section is None:
+                raise ValueError(
+                    "Selected section does not belong to the selected office."
+                )
 
-        db_user.section_id = user.section_id
+            db_user.section_id = update_data["section_id"]
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Email
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.email is not None:
+    if "email" in update_data:
+
+        email = update_data["email"]
+
         db_user.email = (
-            user.email.strip().lower()
-            if user.email
+            email.strip().lower()
+            if email
             else None
         )
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Mobile
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.mobile is not None:
+    if "mobile" in update_data:
+
+        mobile = update_data["mobile"]
+
         db_user.mobile = (
-            user.mobile.strip()
-            if user.mobile
+            mobile.strip()
+            if mobile
             else None
         )
 
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
     # Remarks
-    # ----------------------------------------------------
+    # -----------------------------------------------------------
 
-    if user.remarks is not None:
+    if "remarks" in update_data:
+
+        remarks = update_data["remarks"]
+
         db_user.remarks = (
-            user.remarks.strip()
-            if user.remarks
+            remarks.strip()
+            if remarks
             else None
         )
+
+    try:
+
+        db.commit()
+        db.refresh(db_user)
+
+        return db_user
+
+    except IntegrityError:
+
+        db.rollback()
+
+        raise ValueError(
+            "PEN Number already exists."
+        )
+
+    except Exception:
+
+        db.rollback()
+        raise
+
+    # ---------------------------------------------------------------
+# Soft Delete
+# ---------------------------------------------------------------
+
+def delete_user(
+    db: Session,
+    user_id: int,
+):
+
+    db_user = (
+        db.query(User)
+        .filter(
+            User.id == user_id,
+            User.is_active == True,
+        )
+        .first()
+    )
+
+    if db_user is None:
+        return None
+
+    db_user.is_active = False
 
     try:
 
@@ -438,34 +561,19 @@ def update_user(
         raise
 
 
-#---------------------------------------------------------------
-# Delete User
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+# Lookup
+# ---------------------------------------------------------------
 
-def delete_user(
+def get_user_lookup(
     db: Session,
-    user_id: int,
 ):
 
-    db_user = get_user_by_id(
-        db=db,
-        user_id=user_id,
+    return (
+        db.query(User)
+        .filter(
+            User.is_active == True,
+        )
+        .order_by(User.full_name)
+        .all()
     )
-
-    if not db_user:
-        raise ValueError("User not found.")
-
-    db_user.is_active = False
-
-    try:
-
-        db.commit()
-
-        return db_user
-
-    except Exception:
-
-        db.rollback()
-        raise
-
-    
