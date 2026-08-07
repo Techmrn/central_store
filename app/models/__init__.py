@@ -7,3 +7,4 @@ from .item import Item
 from .opening_stock import OpeningStock
 from .role import Role
 from .user import User
+from .permission import Permission

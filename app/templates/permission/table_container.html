@@ -1,0 +1,11 @@
+{% include "components/table_info.html" %}
+
+{% if permissions %}
+
+    {% include "permission/table.html" %}
+
+{% else %}
+
+    {% include "components/empty_state.html" %}
+
+{% endif %}

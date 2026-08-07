@@ -1,0 +1,141 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/permission/">Permission</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {{ page_title }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Card -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h4 class="mb-0">
+                {{ page_title }}
+            </h4>
+        </div>
+
+        <div class="card-body">
+
+            <!-- Error Message -->
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ error }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert">
+                </button>
+            </div>
+            {% endif %}
+
+            <form
+                method="post"
+                action="{% if is_edit %}/permission/{{ permission_id }}/edit{% else %}/permission/new{% endif %}">
+                
+                <!-- Module Name -->
+                <div class="mb-3">
+                    <label for="module" class="form-label">
+                        Module Name <span class="text-danger">*</span>
+                    </label>
+
+                    <input
+                        type="text"
+                        id="module"
+                        name="module"
+                        class="form-control"
+                        placeholder="e.g. Item, User, Order"
+                        maxlength="50"
+                        required
+                        value="{{ permission.module if permission else '' }}">
+                    <div class="form-text">The target module or domain entity.</div>
+                </div>
+
+                <!-- Action Name -->
+                <div class="mb-3">
+                    <label for="action" class="form-label">
+                        Action Name <span class="text-danger">*</span>
+                    </label>
+
+                    <input
+                        type="text"
+                        id="action"
+                        name="action"
+                        class="form-control"
+                        placeholder="e.g. Read, Create, Edit, Delete, Approve"
+                        maxlength="30"
+                        required
+                        value="{{ permission.action if permission else '' }}">
+                    <div class="form-text">The operation allowed on this module.</div>
+                </div>
+
+                <!-- Description -->
+                <div class="mb-4">
+                    <label for="description" class="form-label">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        class="form-control"
+                        rows="3"
+                        placeholder="Brief summary of what this permission grants..."
+                    >{{ permission.description if permission and permission.description else '' }}</textarea>
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary">
+
+                        <i class="bi bi-check-circle"></i>
+
+                        {% if is_edit %}
+                            Update
+                        {% else %}
+                            Save
+                        {% endif %}
+
+                    </button>
+
+                    <a
+                        href="/permission/"
+                        class="btn btn-secondary">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

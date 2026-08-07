@@ -28,6 +28,8 @@ from app.models.item import Item
 from app.models.opening_stock import OpeningStock
 from app.models.role import Role
 from app.models.user import User
+from app.models.permission import Permission
+
 
 target_metadata = Base.metadata
 # other values from the config, defined by the needs of env.py,
