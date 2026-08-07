@@ -1,0 +1,162 @@
+<div class="table-responsive">
+    <div class="d-flex justify-content-between mb-2">
+    </div>
+    <table id="roleTable" class="table table-hover table-striped align-middle mb-0">
+
+        <thead class="table-dark">
+
+            <tr>
+
+                <th width="90">
+                    Code
+                </th>
+
+                <th>
+                    Role Name
+                </th>
+
+                <th>
+                    Description
+                </th>
+
+                <th width="120">
+                    Status
+                </th>
+
+                <th width="170">
+                    Actions
+                </th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            {% for role in roles %}
+
+            <tr>
+
+                <td>
+
+                    {{ role.code }}
+
+                </td>
+
+                <td>
+
+                    {{ role.name }}
+
+                </td>
+
+                <td>
+
+                    {{ role.description if role.description else '-' }}
+
+                </td>
+
+                <td>
+
+                    <span class="badge bg-success">
+
+                        Active
+
+                    </span>
+
+                </td>
+
+                <td>
+
+                    <a href="/role/{{ role.id }}/edit" class="btn btn-warning btn-sm">
+
+                        <i class="bi bi-pencil-square"></i>
+
+                    </a>
+
+                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                        data-bs-target="#deleteModal{{ role.id }}">
+
+                        <i class="bi bi-trash"></i>
+
+                        Delete
+
+
+                    </button>
+
+                </td>
+
+            </tr>
+
+            <!------Delete  Modal goes HERE -------->
+
+            <div class="modal fade" id="deleteModal{{ role.id }}" tabindex="-1">
+
+                <div class="modal-dialog">
+
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+
+                            <h5 class="modal-title">
+                                Delete Role
+                            </h5>
+
+                            <button type="button" class="btn-close" data-bs-dismiss="modal">
+                            </button>
+
+                        </div>
+
+                        <div class="modal-body">
+
+                            Are you sure you want to delete
+
+                            <strong>{{ role.name }}</strong> ?
+
+                        </div>
+
+                        <div class="modal-footer">
+
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+
+                                Cancel
+
+                            </button>
+
+                            <form method="post" action="/role/{{ role.id }}/delete">
+
+                                <button type="submit" class="btn btn-danger">
+
+                                    Delete
+
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% else %}
+
+            <tr>
+
+                <td colspan="5" class="text-center py-5 text-muted">
+
+                    No Roles Found
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+    {% include "components/pagination.html" %}
+
+</div>

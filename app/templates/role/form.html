@@ -1,0 +1,137 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/role/">Role</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {{ page_title }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Card -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h4 class="mb-0">
+                {{ page_title }}
+            </h4>
+        </div>
+
+        <div class="card-body">
+
+            <!-- Error Message -->
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ error }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert">
+                </button>
+            </div>
+            {% endif %}
+
+            <form
+                method="post"
+                action="{% if is_edit %}/role/{{ role_id }}/edit{% else %}/role/new{% endif %}">
+                
+                <!-- Role Code -->
+                <div class="mb-3">
+                    <label for="code" class="form-label">
+                        Role Code
+                    </label>
+
+                    <input
+                        type="text"
+                        id="code"
+                        name="code"
+                        class="form-control"
+                        maxlength="30"
+                        required
+                        value="{{ role.code if role else '' }}">
+                </div>
+
+                <!-- Role Name -->
+                <div class="mb-3">
+                    <label for="name" class="form-label">
+                        Role Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        class="form-control"
+                        maxlength="100"
+                        required
+                        value="{{ role.name if role else '' }}">
+                </div>
+
+                <!-- Description -->
+                <div class="mb-4">
+                    <label for="description" class="form-label">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        class="form-control"
+                        rows="3"
+                        maxlength="255"
+                    >{{ role.description if role and role.description else '' }}</textarea>
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary">
+
+                        <i class="bi bi-check-circle"></i>
+
+                        {% if is_edit %}
+                            Update
+                        {% else %}
+                            Save
+                        {% endif %}
+
+                    </button>
+
+                    <a
+                        href="/role/"
+                        class="btn btn-secondary">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

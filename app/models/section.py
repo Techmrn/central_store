@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,4 +32,9 @@ class Section(BaseModel):
 
     office: Mapped["Office"] = relationship(
         back_populates="sections",
+    )
+
+    users: Mapped[list["User"]] = relationship(
+        back_populates="section",
+        cascade="all, delete-orphan",
     )

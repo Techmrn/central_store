@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, Request, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 
 
 from app.core.db import get_db
 from app.core.templates import templates
 from app.crud.office import get_all_offices # for foreign key
+from app.models.section import Section
 
 from app.crud.section import (
     get_all_sections,
@@ -272,6 +273,31 @@ def section_table(
             "empty_button_url": "/section/new",
         },
     )
+
+
+# ---------------------------------------------------------
+# Sections by Office (JSON endpoint for cascading dropdown)
+# ---------------------------------------------------------
+
+@router.get("/by-office/{office_id}")
+def get_sections_by_office(
+    office_id: int,
+    db: Session = Depends(get_db),
+):
+    sections = (
+        db.query(Section)
+        .filter(
+            Section.office_id == office_id,
+            Section.is_active == True,
+        )
+        .order_by(Section.name)
+        .all()
+    )
+
+    return [
+        {"id": section.id, "name": section.name}
+        for section in sections
+    ]
     
     
 

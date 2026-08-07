@@ -1,0 +1,89 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+User Master
+{% endblock %}
+
+{% block content %}
+
+<!-- ==========================================================
+Breadcrumb
+=========================================================== -->
+
+<nav aria-label="breadcrumb">
+
+    <ol class="breadcrumb">
+
+        <li class="breadcrumb-item">
+            <a href="/">Dashboard</a>
+        </li>
+
+        <li class="breadcrumb-item">
+            Masters
+        </li>
+
+        <li class="breadcrumb-item active">
+            User
+        </li>
+
+    </ol>
+
+</nav>
+
+
+<!-- ==========================================================
+Page Header
+=========================================================== -->
+
+{% include "components/page_header.html" %}
+
+<!-- ==========================================================
+flash message
+=========================================================== -->
+
+{% include "components/flash_message.html" %}
+
+<!-- ==========================================================
+Search
+=========================================================== -->
+
+<div class="card shadow-sm mb-3">
+
+    <div class="card-body">
+
+        <input id="search-input" type="text" class="form-control" placeholder="Search User" value="{{ search }}">
+
+    </div>
+
+</div>
+
+
+<!-- ==========================================================
+User Table
+=========================================================== -->
+
+<div class="card shadow-sm">
+
+    <div class="card-body p-0">
+
+        {% include "components/loading_spinner.html" %}
+
+        <div id="table-container">
+            {% include "user/table_container.html" %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+
+
+
+{% block scripts %}
+
+<script src="{{ url_for('static', path='js/live_search.js') }}"></script>
+
+{% endblock %}

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
 
@@ -67,4 +67,12 @@ class User(BaseModel):
     last_login: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+    office: Mapped["Office"] = relationship(
+        back_populates="users",
+    )
+
+    section: Mapped[Optional["Section"]] = relationship(
+        back_populates="users",
     )

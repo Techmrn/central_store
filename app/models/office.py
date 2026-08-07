@@ -46,5 +46,10 @@ class Office(BaseModel):
     )
 
     sections: Mapped[list["Section"]] = relationship(
-    back_populates="office"
-)
+        back_populates="office"
+    )
+
+    users: Mapped[list["User"]] = relationship(
+        back_populates="office",
+        cascade="all, delete-orphan",
+    )

@@ -1,0 +1,305 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                Masters
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/user/">User</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {{ page_title }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Card -->
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+            <h4 class="mb-0">
+                {{ page_title }}
+            </h4>
+        </div>
+
+        <div class="card-body">
+
+            <!-- Error Message -->
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ error }}
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert">
+                </button>
+            </div>
+            {% endif %}
+
+            <form
+                method="post"
+                action="{% if is_edit %}/user/{{ user_id }}/edit{% else %}/user/new{% endif %}">
+
+                <!-- Row 1: Code, Username, Full Name -->
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="code" class="form-label">
+                            PEN Number
+                        </label>
+
+                        <input
+                            type="text"
+                            id="code"
+                            name="code"
+                            class="form-control"
+                            maxlength="7"
+                            required
+                            pattern="[0-9]{6,7}"
+                            title="PEN Number must be 6 or 7 digits"
+                            value="{{ user.code if user else '' }}"
+                            {% if is_edit %}readonly{% endif %}>
+                        <small class="text-muted">6 or 7 digits only</small>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="username" class="form-label">
+                            Username
+                        </label>
+
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            class="form-control"
+                            maxlength="50"
+                            required
+                            value="{{ user.username if user else '' }}">
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="full_name" class="form-label">
+                            Full Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="full_name"
+                            name="full_name"
+                            class="form-control"
+                            maxlength="150"
+                            required
+                            value="{{ user.full_name if user else '' }}">
+                    </div>
+                </div>
+
+                <!-- Row 2: Password, Designation -->
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="password" class="form-label">
+                            Password {% if not is_edit %}<span class="text-danger">*</span>{% endif %}
+                        </label>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            class="form-control"
+                            maxlength="255"
+                            {% if not is_edit %}required{% endif %}>
+                        {% if is_edit %}
+                        <small class="text-muted">Leave blank to keep current password</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="designation" class="form-label">
+                            Designation
+                        </label>
+
+                        <input
+                            type="text"
+                            id="designation"
+                            name="designation"
+                            class="form-control"
+                            maxlength="100"
+                            value="{{ user.designation if user and user.designation else '' }}">
+                    </div>
+                </div>
+
+                <!-- Row 3: Office, Section -->
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="office_id" class="form-label">
+                            Office
+                        </label>
+
+                        <select
+                            id="office_id"
+                            name="office_id"
+                            class="form-select"
+                            required>
+
+                            <option value="">
+                                Select Office
+                            </option>
+
+                            {% for office in offices %}
+                            <option value="{{ office.id }}"
+                                {% if user and user.office_id == office.id %}selected{% endif %}>
+                                {{ office.name }}
+                            </option>
+                            {% endfor %}
+
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="section_id" class="form-label">
+                            Section
+                        </label>
+
+                        <select
+                            id="section_id"
+                            name="section_id"
+                            class="form-select">
+
+                            <option value="">
+                                Select Section
+                            </option>
+
+                            {% for section in sections %}
+                            <option value="{{ section.id }}"
+                                {% if user and user.section_id == section.id %}selected{% endif %}>
+                                {{ section.name }}
+                            </option>
+                            {% endfor %}
+
+                        </select>
+                        <small class="text-muted">Select office first</small>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="email" class="form-label">
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            class="form-control"
+                            maxlength="100"
+                            value="{{ user.email if user and user.email else '' }}">
+                    </div>
+                </div>
+
+                <!-- Row 4: Mobile, Remarks -->
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="mobile" class="form-label">
+                            Mobile
+                        </label>
+
+                        <input
+                            type="text"
+                            id="mobile"
+                            name="mobile"
+                            class="form-control"
+                            maxlength="15"
+                            value="{{ user.mobile if user and user.mobile else '' }}">
+                    </div>
+
+                    <div class="col-md-8 mb-4">
+                        <label for="remarks" class="form-label">
+                            Remarks
+                        </label>
+
+                        <textarea
+                            id="remarks"
+                            name="remarks"
+                            class="form-control"
+                            rows="2"
+                            maxlength="255"
+                        >{{ user.remarks if user and user.remarks else '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary">
+
+                        <i class="bi bi-check-circle"></i>
+
+                        {% if is_edit %}
+                            Update
+                        {% else %}
+                            Save
+                        {% endif %}
+
+                    </button>
+
+                    <a
+                        href="/user/"
+                        class="btn btn-secondary">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const officeSelect = document.getElementById('office_id');
+    const sectionSelect = document.getElementById('section_id');
+
+    officeSelect.addEventListener('change', function() {
+        const officeId = this.value;
+
+        // Clear section dropdown
+        sectionSelect.innerHTML = '<option value="">Select Section</option>';
+
+        if (officeId) {
+            fetch(`/section/by-office/${officeId}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(function(section) {
+                        const option = document.createElement('option');
+                        option.value = section.id;
+                        option.textContent = section.name;
+                        sectionSelect.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error loading sections:', error));
+        }
+    });
+});
+</script>
+{% endblock %}
