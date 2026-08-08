@@ -6,12 +6,14 @@ from app.models.user import User
 from app.models.office import Office
 from app.models.section import Section
 
+
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
 )
 
 from app.core.pagination import get_pagination_result
+from app.core.security import hash_password
 
 
 # ---------------------------------------------------------------
@@ -168,7 +170,7 @@ def create_user(
     db_user = User(
         code=code,
         username=username,
-        password_hash=user.password,      # Temporary
+        password_hash=hash_password(user.password),
         full_name=full_name,
         designation=designation,
         office_id=user.office_id,
@@ -379,8 +381,9 @@ def update_user(
 
     if "password" in update_data:
 
-        # Replace with password hashing later
-        db_user.password_hash = update_data["password"]
+        db_user.password_hash = hash_password(
+        update_data["password"]
+    )
 
     # -----------------------------------------------------------
     # Full Name

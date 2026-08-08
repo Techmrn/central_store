@@ -16,6 +16,7 @@ from app.routers.role_permission import router as role_permission_router
 from app.routers.user_role import router as user_role_router
 from app.routers.login_history import router as login_history_router
 
+
 #importing jinja templates
 from app.routers.ui import dashboard   # Including HTML Template 
 from app.routers.ui import category
@@ -54,6 +55,7 @@ app.include_router(permission_router)
 app.include_router(role_permission_router)
 app.include_router(user_role_router)
 app.include_router(login_history_router)
+
 
 #ui api s
 
