@@ -1,0 +1,60 @@
+<div class="table-responsive">
+    <table id="userRoleTable" class="table table-hover table-striped align-middle mb-0">
+        <thead class="table-dark">
+            <tr>
+                <th>PEN No</th>
+                <th>User Name</th>
+                <th>Full Name</th>
+                <th>Role Code</th>
+                <th>Role Name</th>
+                <th width="120">Status</th>
+                <th width="120">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in user_roles %}
+            <tr>
+                <td><code>{{ item.user.code }}</code></td>
+                <td>{{ item.user.username }}</td>
+                <td><strong>{{ item.user.full_name }}</strong></td>
+                <td><span class="badge bg-secondary">{{ item.role.code }}</span></td>
+                <td><strong>{{ item.role.name }}</strong></td>
+                <td>
+                    <span class="badge bg-success">Active</span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.id }}">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </td>
+            </tr>
+
+            <!-- Delete Modal -->
+            <div class="modal fade" id="deleteModal{{ item.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Remove User Role</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            Are you sure you want to remove role <strong>{{ item.role.name }}</strong> from user <strong>{{ item.user.full_name }}</strong>?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <form method="post" action="/user-role/{{ item.id }}/delete">
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center py-5 text-muted">No User Role Mappings Found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% include "components/pagination.html" %}
+</div>

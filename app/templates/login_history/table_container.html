@@ -1,0 +1,11 @@
+{% include "components/table_info.html" %}
+
+{% if login_histories %}
+
+    {% include "login_history/table.html" %}
+
+{% else %}
+
+    {% include "components/empty_state.html" %}
+
+{% endif %}

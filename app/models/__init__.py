@@ -8,3 +8,6 @@ from .opening_stock import OpeningStock
 from .role import Role
 from .user import User
 from .permission import Permission
+from .role_permission import RolePermission
+from .user_role import UserRole
+from .login_history import LoginHistory

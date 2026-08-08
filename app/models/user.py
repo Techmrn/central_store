@@ -76,3 +76,11 @@ class User(BaseModel):
     section: Mapped[Optional["Section"]] = relationship(
         back_populates="users",
     )
+
+    user_roles: Mapped[list["UserRole"]] = relationship(
+        back_populates="user",
+    )
+
+    login_history: Mapped[list["LoginHistory"]] = relationship(
+        back_populates="user",
+    )

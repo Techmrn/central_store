@@ -1,0 +1,39 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Role Permission Master
+{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+        <li class="breadcrumb-item">Masters</li>
+        <li class="breadcrumb-item active">Role Permission</li>
+    </ol>
+</nav>
+
+{% include "components/page_header.html" %}
+{% include "components/flash_message.html" %}
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <input id="search-input" type="text" class="form-control" placeholder="Search Role or Permission" value="{{ search }}">
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        {% include "components/loading_spinner.html" %}
+        <div id="table-container">
+            {% include "role_permission/table_container.html" %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/live_search.js') }}"></script>
+{% endblock %}

@@ -12,6 +12,9 @@ from app.routers.opening_stock import router as opening_stock_router
 from app.routers.role import router as role_router
 from app.routers.user import router as user_router
 from app.routers.permission import router as permission_router
+from app.routers.role_permission import router as role_permission_router
+from app.routers.user_role import router as user_role_router
+from app.routers.login_history import router as login_history_router
 
 #importing jinja templates
 from app.routers.ui import dashboard   # Including HTML Template 
@@ -24,6 +27,9 @@ from app.routers.ui import financial_year
 from app.routers.ui import role
 from app.routers.ui import user
 from app.routers.ui import permission
+from app.routers.ui import role_permission
+from app.routers.ui import user_role
+from app.routers.ui import login_history
 
 
 
@@ -45,6 +51,9 @@ app.include_router(opening_stock_router)
 app.include_router(role_router)
 app.include_router(user_router)
 app.include_router(permission_router)
+app.include_router(role_permission_router)
+app.include_router(user_role_router)
+app.include_router(login_history_router)
 
 #ui api s
 
@@ -58,6 +67,9 @@ app.include_router(financial_year.router) # adding ui of financial year master
 app.include_router(role.router) # adding ui of role master
 app.include_router(user.router) # adding ui of user master
 app.include_router(permission.router) # adding ui of permission master
+app.include_router(role_permission.router)
+app.include_router(user_role.router)
+app.include_router(login_history.router)
 
 
 
