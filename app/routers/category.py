@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.schemas.common import PaginatedResponse
 
+from app.dependencies.permissions import require_permission
+
 from app.crud.category import (
     create_category,
     get_all_categories,
@@ -37,6 +39,7 @@ router = APIRouter(
 def add_category(
     category: CategoryCreate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("CATEGORY_CREATE")),
 ):
     try:
         return create_category(db, category)
@@ -59,6 +62,7 @@ def add_category(
 )
 def list_categories(
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("CATEGORY_VIEW")),
 ):
     return get_all_categories(db)
 
@@ -75,6 +79,7 @@ def list_categories(
 def read_category(
     category_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("CATEGORY_VIEW")),
 ):
 
     category_db = get_category_by_id(db, category_id)
@@ -101,6 +106,7 @@ def edit_category(
     category_id: int,
     category: CategoryUpdate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("CATEGORY_UPDATE")),
 ):
 
     try:
@@ -137,6 +143,7 @@ def edit_category(
 def remove_category(
     category_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("CATEGORY_DELETE")),
 ):
 
     result = delete_category(db, category_id)

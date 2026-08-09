@@ -7,6 +7,8 @@ from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate
 from app.core.constants import PAGE_SIZE
 
+from app.dependencies.permissions import require_permission
+
 
 # ---------------------------------------------------------------
 # Helper Functions
