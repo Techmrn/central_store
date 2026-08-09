@@ -20,17 +20,7 @@ def authenticate_user(
 ):
     """
     Authenticate a user and create an access token.
-
-    Returns:
-        dict containing the authenticated user and access token.
-
-    Raises:
-        ValueError: When authentication fails.
     """
-
-    # -----------------------------------------------------------
-    # Find active user
-    # -----------------------------------------------------------
 
     user = get_user_by_username(
         db=db,
@@ -40,41 +30,24 @@ def authenticate_user(
     if user is None:
         raise ValueError("Invalid username or password.")
 
-    # -----------------------------------------------------------
-    # Verify password
-    # -----------------------------------------------------------
-
     if not verify_password(
         password,
         user.password_hash,
     ):
         raise ValueError("Invalid username or password.")
 
-    # -----------------------------------------------------------
-    # Create login history
-    # -----------------------------------------------------------
-
     login_time = datetime.now(timezone.utc)
-    user.last_login = login_time
-    db.commit()
-    db.refresh(user)
 
-    login_history = LoginHistoryCreate(
-        user_id=user.id,
-        login_time=login_time,
-        ip_address=ip_address,
-        user_agent=user_agent,
-        status="SUCCESS",
-    )
-
-    create_login_history(
+    login_history = create_login_history(
         db=db,
-        login_history=login_history,
+        login_history=LoginHistoryCreate(
+            user_id=user.id,
+            login_time=login_time,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            status="SUCCESS",
+        ),
     )
-
-    # -----------------------------------------------------------
-    # Create JWT
-    # -----------------------------------------------------------
 
     access_token = create_access_token(
         data={
@@ -86,4 +59,5 @@ def authenticate_user(
         "access_token": access_token,
         "token_type": "bearer",
         "user": user,
+        "login_history_id": login_history.id,
     }

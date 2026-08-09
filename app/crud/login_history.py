@@ -82,6 +82,20 @@ def get_login_history_by_id(db: Session, history_id: int):
         .first()
     )
 
+def get_login_history_for_user(
+    db: Session,
+    history_id: int,
+    user_id: int,
+):
+    return (
+        db.query(LoginHistory)
+        .filter(
+            LoginHistory.id == history_id,
+            LoginHistory.user_id == user_id,
+        )
+        .first()
+    )
+
 
 def record_logout(db: Session, history_id: int):
     history = get_login_history_by_id(db, history_id)

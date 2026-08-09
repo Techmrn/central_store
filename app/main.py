@@ -1,4 +1,4 @@
-# pyrefly: ignore [missing-import]
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
@@ -15,7 +15,7 @@ from app.routers.permission import router as permission_router
 from app.routers.role_permission import router as role_permission_router
 from app.routers.user_role import router as user_role_router
 from app.routers.login_history import router as login_history_router
-
+from app.routers.auth import router as auth_router # for user authentication and JWT generation
 
 #importing jinja templates
 from app.routers.ui import dashboard   # Including HTML Template 
@@ -55,6 +55,7 @@ app.include_router(permission_router)
 app.include_router(role_permission_router)
 app.include_router(user_role_router)
 app.include_router(login_history_router)
+app.include_router(auth_router) # auth router
 
 
 #ui api s
