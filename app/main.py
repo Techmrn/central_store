@@ -19,6 +19,7 @@ from app.routers.auth import router as auth_router # for user authentication and
 
 #importing jinja templates
 from app.routers.ui import dashboard   # Including HTML Template 
+from app.routers.ui import auth as ui_auth
 from app.routers.ui import category
 from app.routers.ui import unit
 from app.routers.ui import office
@@ -60,6 +61,7 @@ app.include_router(auth_router) # auth router
 
 #ui api s
 
+app.include_router(ui_auth.router)
 app.include_router(dashboard.router) #ui router
 app.include_router(category.router) #ui router
 app.include_router(unit.router) # adding ui of unit master
