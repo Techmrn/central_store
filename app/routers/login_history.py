@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.dependencies.permissions import require_permission
 from app.crud.login_history import (
     create_login_history,
     get_all_login_histories,
@@ -51,6 +52,7 @@ def list_login_histories(
     status_filter: str | None = Query(default=None),
     page: int = Query(default=1),
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("LOGIN_HISTORY_VIEW")),
 ):
     return get_all_login_histories(
         db=db,
@@ -69,6 +71,7 @@ def list_login_histories(
 def get_login_history(
     history_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("LOGIN_HISTORY_VIEW")),
 ):
     item = get_login_history_by_id(db, history_id)
     if not item:

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.dependencies.permissions import require_permission
 from app.crud.role_permission import (
     create_role_permission,
     get_all_role_permissions,
@@ -32,6 +33,7 @@ router = APIRouter(
 def add_role_permission(
     data: RolePermissionCreate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_PERMISSION_ASSIGN")),
 ):
     try:
         return create_role_permission(db, data)
@@ -49,6 +51,7 @@ def add_role_permission(
 def bulk_assign_permissions(
     data: RolePermissionBulkAssign,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_PERMISSION_ASSIGN")),
 ):
     try:
         return bulk_assign_role_permissions(
@@ -74,6 +77,7 @@ def list_role_permissions(
     permission_id: int | None = Query(default=None),
     page: int = Query(default=1),
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_PERMISSION_VIEW")),
 ):
     return get_all_role_permissions(
         db=db,
@@ -92,6 +96,7 @@ def list_role_permissions(
 def get_role_permission(
     role_permission_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_PERMISSION_VIEW")),
 ):
     item = get_role_permission_by_id(db, role_permission_id)
     if not item:
@@ -109,6 +114,7 @@ def get_role_permission(
 def remove_role_permission(
     role_permission_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_PERMISSION_REMOVE")),
 ):
     try:
         delete_role_permission(db, role_permission_id)

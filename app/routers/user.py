@@ -1,8 +1,8 @@
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.dependencies.permissions import require_permission
 
 from app.crud.user import (
     create_user,
@@ -11,7 +11,6 @@ from app.crud.user import (
     update_user,
     delete_user,
 )
-
 
 from app.schemas.common import PaginatedResponse
 from app.schemas.user import (
@@ -35,6 +34,7 @@ router = APIRouter(
 def add_user(
     user: UserCreate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_CREATE")),
 ):
     try:
         return create_user(db, user)
@@ -53,6 +53,7 @@ def add_user(
 )
 def list_users(
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_VIEW")),
 ):
     return get_all_users(db)
 
@@ -65,6 +66,7 @@ def list_users(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_VIEW")),
 ):
 
     db_user = get_user_by_id(
@@ -90,6 +92,7 @@ def edit_user(
     user_id: int,
     user: UserUpdate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_UPDATE")),
 ):
 
     try:
@@ -121,6 +124,7 @@ def edit_user(
 def remove_user(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_DELETE")),
 ):
 
     try:

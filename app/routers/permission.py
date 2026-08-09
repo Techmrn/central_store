@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.dependencies.permissions import require_permission
 from app.crud.permission import (
     create_permission,
     delete_permission,
@@ -31,6 +32,7 @@ router = APIRouter(
 def add_permission(
     permission: PermissionCreate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("PERMISSION_CREATE")),
 ):
     try:
         return create_permission(db, permission)
@@ -50,6 +52,7 @@ def list_permissions(
     search: str = Query(default=""),
     page: int = Query(default=1),
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("PERMISSION_VIEW")),
 ):
     return get_all_permissions(db, search=search, page=page)
 
@@ -62,6 +65,7 @@ def list_permissions(
 def get_permission(
     permission_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("PERMISSION_VIEW")),
 ):
     db_permission = get_permission_by_id(db=db, permission_id=permission_id)
     if not db_permission:
@@ -81,6 +85,7 @@ def edit_permission(
     permission_id: int,
     permission: PermissionUpdate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("PERMISSION_UPDATE")),
 ):
     try:
         updated = update_permission(
@@ -113,6 +118,7 @@ def edit_permission(
 def remove_permission(
     permission_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("PERMISSION_DELETE")),
 ):
     try:
         deleted = delete_permission(db=db, permission_id=permission_id)

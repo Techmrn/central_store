@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.dependencies.permissions import require_permission
 
 from app.crud.section import (
     create_section,
@@ -34,6 +35,7 @@ router = APIRouter(
 def add_section(
     section: SectionCreate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("SECTION_CREATE")),
 ):
     try:
         return create_section(db, section)
@@ -49,7 +51,10 @@ def add_section(
     response_model=PaginatedResponse[SectionRead],
     summary="Get All Sections",
 )
-def list_sections(db: Session = Depends(get_db)):
+def list_sections(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("SECTION_VIEW")),
+):
     return get_all_sections(db)
 
 
@@ -61,6 +66,7 @@ def list_sections(db: Session = Depends(get_db)):
 def get_section(
     section_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("SECTION_VIEW")),
 ):
     section_db = get_section_by_id(db, section_id)
 
@@ -82,6 +88,7 @@ def edit_section(
     section_id: int,
     section: SectionUpdate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("SECTION_UPDATE")),
 ):
     try:
         result = update_section(db, section_id, section)
@@ -108,6 +115,7 @@ def edit_section(
 def remove_section(
     section_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("SECTION_DELETE")),
 ):
     result = delete_section(db, section_id)
 

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.dependencies.permissions import require_permission
 
 from app.crud.role import (
     create_role,
@@ -10,7 +11,6 @@ from app.crud.role import (
     update_role,
     delete_role,
 )
-
 
 from app.schemas.common import PaginatedResponse
 from app.schemas.role import (
@@ -34,6 +34,7 @@ router = APIRouter(
 def add_role(
     role: RoleCreate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_CREATE")),
 ):
     try:
         return create_role(db, role)
@@ -52,6 +53,7 @@ def add_role(
 )
 def list_roles(
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_VIEW")),
 ):
     return get_all_roles(db)
 
@@ -64,6 +66,7 @@ def list_roles(
 def get_role(
     role_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_VIEW")),
 ):
     role_db = get_role_by_id(db, role_id)
 
@@ -85,6 +88,7 @@ def edit_role(
     role_id: int,
     role: RoleUpdate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_UPDATE")),
 ):
     try:
         return update_role(
@@ -114,6 +118,7 @@ def edit_role(
 def remove_role(
     role_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("ROLE_DELETE")),
 ):
     try:
 

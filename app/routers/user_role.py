@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.dependencies.permissions import require_permission
 from app.crud.user_role import (
     create_user_role,
     get_all_user_roles,
@@ -32,6 +33,7 @@ router = APIRouter(
 def add_user_role(
     data: UserRoleCreate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_ROLE_ASSIGN")),
 ):
     try:
         return create_user_role(db, data)
@@ -49,6 +51,7 @@ def add_user_role(
 def bulk_assign_roles(
     data: UserRoleBulkAssign,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_ROLE_ASSIGN")),
 ):
     try:
         return bulk_assign_user_roles(
@@ -74,6 +77,7 @@ def list_user_roles(
     role_id: int | None = Query(default=None),
     page: int = Query(default=1),
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_ROLE_VIEW")),
 ):
     return get_all_user_roles(
         db=db,
@@ -92,6 +96,7 @@ def list_user_roles(
 def get_user_role(
     user_role_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_ROLE_VIEW")),
 ):
     item = get_user_role_by_id(db, user_role_id)
     if not item:
@@ -109,6 +114,7 @@ def get_user_role(
 def remove_user_role(
     user_role_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("USER_ROLE_REMOVE")),
 ):
     try:
         delete_user_role(db, user_role_id)

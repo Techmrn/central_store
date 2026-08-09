@@ -78,6 +78,9 @@ PERMISSIONS = [
 
     # Login History
     ("Login History", "View", "View login history"),
+
+    ("User Role", "View", "View user-role assignments"),
+("Role Permission", "View", "View role-permission assignments"),
 ]
 
 

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.dependencies.permissions import require_permission
 from app.crud.unit import (
     create_unit,
     get_all_units,
@@ -27,10 +28,12 @@ router = APIRouter(
     "/",
     response_model=UnitRead,
     status_code=status.HTTP_201_CREATED,
+    summary="Create Unit",
 )
 def add_unit(
     unit: UnitCreate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("UNIT_CREATE")),
 ):
     try:
         return create_unit(db, unit)
@@ -42,15 +45,27 @@ def add_unit(
         )
 
 
-@router.get("/", response_model=PaginatedResponse[UnitRead])
-def list_units(db: Session = Depends(get_db)):
+@router.get(
+    "/",
+    response_model=PaginatedResponse[UnitRead],
+    summary="Get All Units",
+)
+def list_units(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("UNIT_VIEW")),
+):
     return get_all_units(db)
 
 
-@router.get("/{unit_id}", response_model=UnitRead)
+@router.get(
+    "/{unit_id}",
+    response_model=UnitRead,
+    summary="Get Unit By ID",
+)
 def read_unit(
     unit_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("UNIT_VIEW")),
 ):
     unit_db = get_unit_by_id(db, unit_id)
 
@@ -63,11 +78,16 @@ def read_unit(
     return unit_db
 
 
-@router.put("/{unit_id}", response_model=UnitRead)
+@router.put(
+    "/{unit_id}",
+    response_model=UnitRead,
+    summary="Update Unit",
+)
 def edit_unit(
     unit_id: int,
     unit: UnitUpdate,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("UNIT_UPDATE")),
 ):
     try:
         result = update_unit(db, unit_id, unit)
@@ -87,10 +107,14 @@ def edit_unit(
         )
 
 
-@router.delete("/{unit_id}")
+@router.delete(
+    "/{unit_id}",
+    summary="Delete Unit",
+)
 def remove_unit(
     unit_id: int,
     db: Session = Depends(get_db),
+    current_user=Depends(require_permission("UNIT_DELETE")),
 ):
     result = delete_unit(db, unit_id)
 
