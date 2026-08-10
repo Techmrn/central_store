@@ -1,0 +1,31 @@
+                 INDENT
+                   │
+          ┌────────┴────────┐
+          │                 │
+       HEADER             LINES
+          │                 │
+   Request details      Item
+   Source               Requested Qty
+   Office               Issued Qty
+   Section              Remarks
+   Reference
+   Financial Year
+   Status
+          │
+          ▼
+   FUTURE WORKFLOW
+          │
+   Section Head
+          ↓
+   Office Head
+          ↓
+   SGP / DS
+          ↓
+   Store Keeper
+          ↓
+   Issue quantities
+          ↓
+       CLOSE
+          │
+          ▼
+    STOCK MOVEMENT

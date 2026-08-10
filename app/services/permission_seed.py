@@ -91,7 +91,15 @@ PERMISSIONS = [
     # Asset Movement
     ("Asset Movement", "View", "View asset movement records"),
     ("Asset Movement", "Create", "Create asset movement records"),
+
+    # Indent
+    ("Indent", "View", "View indent records"),
+    ("Indent", "Create", "Create indent records"),
+    ("Indent", "Update", "Update indent records"),
+    ("Indent", "Delete", "Delete indent records"),
+    ("Indent", "Close", "Close indent records"),
 ]
+
 
 
 def seed_permissions(db: Session) -> int:

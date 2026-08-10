@@ -35,6 +35,9 @@ from app.models.login_history import LoginHistory
 from app.models.asset import Asset
 from app.models.asset_detail import AssetDetail
 from app.models.asset_movement import AssetMovement
+from app.models.indent import Indent
+from app.models.indent_line import IndentLine
+
 
 
 

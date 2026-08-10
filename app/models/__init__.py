@@ -14,4 +14,7 @@ from .login_history import LoginHistory
 from .asset import Asset
 from .asset_detail import AssetDetail
 from .asset_movement import AssetMovement
+from .indent import Indent
+from .indent_line import IndentLine
+
 

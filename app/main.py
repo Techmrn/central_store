@@ -17,6 +17,8 @@ from app.routers.user_role import router as user_role_router
 from app.routers.login_history import router as login_history_router
 from app.routers.auth import router as auth_router # for user authentication and JWT generation
 from app.routers.asset import router as asset_router
+from app.routers.indent import router as indent_router
+
 
 
 #importing jinja templates
@@ -61,6 +63,8 @@ app.include_router(user_role_router)
 app.include_router(login_history_router)
 app.include_router(auth_router) # auth router
 app.include_router(asset_router)
+app.include_router(indent_router)
+
 
 
 
