@@ -32,6 +32,7 @@ from app.routers.ui import permission
 from app.routers.ui import role_permission
 from app.routers.ui import user_role
 from app.routers.ui import login_history
+from app.routers.ui import opening_stock as opening_stock_ui
 
 
 
@@ -75,6 +76,7 @@ app.include_router(permission.router) # adding ui of permission master
 app.include_router(role_permission.router)
 app.include_router(user_role.router)
 app.include_router(login_history.router)
+app.include_router(opening_stock_ui.router)
 
 
 

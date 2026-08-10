@@ -1,0 +1,164 @@
+<div class="table-responsive">
+    <table id="openingStockTable" class="table table-hover table-striped align-middle mb-0">
+
+        <thead class="table-dark">
+
+            <tr>
+
+                <th width="140">
+                    Financial Year
+                </th>
+
+                <th>
+                    Office
+                </th>
+
+                <th>
+                    Item
+                </th>
+
+                <th width="120" class="text-end">
+                    Quantity
+                </th>
+
+                <th width="130" class="text-end">
+                    Unit Rate
+                </th>
+
+                <th width="140" class="text-end">
+                    Total Value
+                </th>
+
+                <th>
+                    Remarks
+                </th>
+
+                <th width="140">
+                    Actions
+                </th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            {% for stock in opening_stocks %}
+
+            <tr>
+
+                <td>
+                    {{ stock.financial_year.year_name if stock.financial_year else stock.financial_year_id }}
+                </td>
+
+                <td>
+                    {{ stock.office.name if stock.office else stock.office_id }}
+                </td>
+
+                <td>
+                    {% if stock.item %}
+                        {{ stock.item.code }} - {{ stock.item.name }}
+                    {% else %}
+                        {{ stock.item_id }}
+                    {% endif %}
+                </td>
+
+                <td class="text-end">
+                    {{ stock.quantity }}
+                </td>
+
+                <td class="text-end">
+                    {{ stock.unit_rate }}
+                </td>
+
+                <td class="text-end">
+                    {{ stock.total_value }}
+                </td>
+
+                <td>
+                    {{ stock.remarks or "-" }}
+                </td>
+
+                <td>
+
+                    <a href="/opening-stock/{{ stock.id }}/edit" class="btn btn-warning btn-sm">
+
+                        <i class="bi bi-pencil-square"></i>
+
+                    </a>
+
+                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                        data-bs-target="#deleteModal{{ stock.id }}">
+
+                        <i class="bi bi-trash"></i>
+
+                    </button>
+
+                </td>
+
+            </tr>
+
+            <!-- Delete Modal -->
+
+            <div class="modal fade" id="deleteModal{{ stock.id }}" tabindex="-1">
+
+                <div class="modal-dialog">
+
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+
+                            <h5 class="modal-title">
+                                Delete Opening Stock
+                            </h5>
+
+                            <button type="button" class="btn-close" data-bs-dismiss="modal">
+                            </button>
+
+                        </div>
+
+                        <div class="modal-body">
+
+                            Are you sure you want to delete opening stock for
+
+                            <strong>{% if stock.item %}{{ stock.item.name }}{% else %}Item #{{ stock.item_id }}{% endif %}</strong>
+
+                            ({% if stock.financial_year %}{{ stock.financial_year.year_name }}{% else %}{{ stock.financial_year_id }}{% endif %})?
+
+                        </div>
+
+                        <div class="modal-footer">
+
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+
+                                Cancel
+
+                            </button>
+
+                            <form method="post" action="/opening-stock/{{ stock.id }}/delete">
+
+                                <button type="submit" class="btn btn-danger">
+
+                                    Delete
+
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+    {% include "components/pagination.html" %}
+
+</div>

@@ -1,0 +1,11 @@
+{% include "components/table_info.html" %}
+
+{% if opening_stocks %}
+
+    {% include "opening_stock/table.html" %}
+
+{% else %}
+
+    {% include "components/empty_state.html" %}
+
+{% endif %}

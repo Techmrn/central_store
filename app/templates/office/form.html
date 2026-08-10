@@ -116,12 +116,13 @@
 
                 <!-- Remarks -->
                 <div class="mb-4">
-                    <label class="form-label">Remarks</label>
+                    <label class="form-label">Remarks <span class="text-danger">*</span></label>
 
                     <textarea
                         name="remarks"
                         rows="3"
-                        class="form-control">{{ office.remarks if office else '' }}</textarea>
+                        class="form-control"
+                        required>{{ office.remarks if office else '' }}</textarea>
                 </div>
 
                 <div class="d-flex gap-2">
