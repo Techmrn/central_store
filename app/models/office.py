@@ -53,3 +53,8 @@ class Office(BaseModel):
         back_populates="office",
         cascade="all, delete-orphan",
     )
+
+    assets: Mapped[list["Asset"]] = relationship(
+        "Asset",
+        back_populates="office",
+    )

@@ -11,3 +11,7 @@ from .permission import Permission
 from .role_permission import RolePermission
 from .user_role import UserRole
 from .login_history import LoginHistory
+from .asset import Asset
+from .asset_detail import AssetDetail
+from .asset_movement import AssetMovement
+

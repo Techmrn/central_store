@@ -32,6 +32,10 @@ from app.models.permission import Permission
 from app.models.role_permission import RolePermission
 from app.models.user_role import UserRole
 from app.models.login_history import LoginHistory
+from app.models.asset import Asset
+from app.models.asset_detail import AssetDetail
+from app.models.asset_movement import AssetMovement
+
 
 
 target_metadata = Base.metadata

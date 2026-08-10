@@ -80,7 +80,17 @@ PERMISSIONS = [
     ("Login History", "View", "View login history"),
 
     ("User Role", "View", "View user-role assignments"),
-("Role Permission", "View", "View role-permission assignments"),
+    ("Role Permission", "View", "View role-permission assignments"),
+
+    # Asset
+    ("Asset", "View", "View asset records"),
+    ("Asset", "Create", "Create asset records"),
+    ("Asset", "Update", "Update asset records"),
+    ("Asset", "Delete", "Delete asset records"),
+
+    # Asset Movement
+    ("Asset Movement", "View", "View asset movement records"),
+    ("Asset Movement", "Create", "Create asset movement records"),
 ]
 
 
@@ -127,50 +137,69 @@ def seed_permissions(db: Session) -> int:
 
 def seed_admin_permissions(db: Session) -> int:
     """
-    Assign all available permissions to the ADMIN role.
+    Assign all available permissions to ADMIN and STOREKEEPER roles.
 
-    ADMIN role ID is currently 1.
+    Dynamically looks up roles by code instead of assuming fixed IDs.
     Returns the number of new role-permission mappings created.
     """
+    from sqlalchemy import func
+    from app.models.role import Role
 
-    admin_role_id = 1
+    target_roles = (
+        db.query(Role)
+        .filter(
+            Role.is_active == True,
+            func.upper(Role.code).in_(
+                ["ADMIN", "STOREKEEPER", "CENTRAL_STORE_KEEPER", "STORE_KEEPER"]
+            ),
+        )
+        .all()
+    )
+
+    if not target_roles:
+        first_role = (
+            db.query(Role)
+            .filter(Role.is_active == True)
+            .order_by(Role.id)
+            .first()
+        )
+        if first_role:
+            target_roles = [first_role]
 
     created_count = 0
 
-    for module, action, _description in PERMISSIONS:
-
-        code = (
-            f"{module}_{action}"
-            .upper()
-            .replace(" ", "_")
-        )
-
-        permission = get_permission_by_code(
-            db=db,
-            code=code,
-        )
-
-        if permission is None:
-            continue
-
-        try:
-            create_role_permission(
-                db=db,
-                role_permission=RolePermissionCreate(
-                    role_id=admin_role_id,
-                    permission_id=permission.id,
-                ),
+    for role in target_roles:
+        for module, action, _description in PERMISSIONS:
+            code = (
+                f"{module}_{action}"
+                .upper()
+                .replace(" ", "_")
             )
 
-            created_count += 1
+            permission = get_permission_by_code(
+                db=db,
+                code=code,
+            )
 
-        except ValueError as exc:
-
-            if str(exc) == "Role permission mapping already exists.":
+            if permission is None:
                 continue
 
-            raise
+            try:
+                create_role_permission(
+                    db=db,
+                    role_permission=RolePermissionCreate(
+                        role_id=role.id,
+                        permission_id=permission.id,
+                    ),
+                )
+                created_count += 1
+
+            except ValueError as exc:
+                if str(exc) == "Role permission mapping already exists.":
+                    continue
+                raise
 
     return created_count
+
 
 """ create a temperory seeder in root and run this manually"""

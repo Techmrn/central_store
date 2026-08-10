@@ -38,3 +38,9 @@ class Section(BaseModel):
         back_populates="section",
         cascade="all, delete-orphan",
     )
+
+    assets: Mapped[list["Asset"]] = relationship(
+        "Asset",
+        back_populates="section",
+    )
+

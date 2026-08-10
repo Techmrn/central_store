@@ -52,3 +52,8 @@ class Item(BaseModel):
         "Unit",
         back_populates="items",
     )
+
+    assets: Mapped[list["Asset"]] = relationship(
+        "Asset",
+        back_populates="item",
+    )
