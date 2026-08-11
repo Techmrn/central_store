@@ -98,7 +98,40 @@ PERMISSIONS = [
     ("Indent", "Update", "Update indent records"),
     ("Indent", "Delete", "Delete indent records"),
     ("Indent", "Close", "Close indent records"),
+
+    # Issue
+    ("Issue", "View", "View issue records"),
+    ("Issue", "Create", "Create issue records"),
+    ("Issue", "Update", "Update issue records"),
+    ("Issue", "Delete", "Delete issue records"),
+    ("Issue", "Post", "Post issue records"),
+
+    # Receipt
+    ("Receipt", "View", "View receipt records"),
+    ("Receipt", "Create", "Create receipt records"),
+    ("Receipt", "Update", "Update receipt records"),
+    ("Receipt", "Delete", "Delete receipt records"),
+    ("Receipt", "Post", "Post receipt records"),
+
+    # Return
+    ("Return", "View", "View return records"),
+    ("Return", "Create", "Create return records"),
+    ("Return", "Post", "Post return records"),
+
+    # Transfer
+    ("Transfer", "View", "View transfer records"),
+    ("Transfer", "Create", "Create transfer records"),
+    ("Transfer", "Post", "Post transfer records"),
+
+    # Stock
+    ("Stock", "View", "View stock records and registers"),
+    ("Stock", "Adjust", "Adjust stock records"),
+
+    # Outward Pass
+    ("Outward Pass", "View", "View outward pass records"),
+    ("Outward Pass", "Create", "Create outward pass records"),
 ]
+
 
 
 

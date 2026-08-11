@@ -18,7 +18,12 @@ from app.routers.login_history import router as login_history_router
 from app.routers.auth import router as auth_router # for user authentication and JWT generation
 from app.routers.asset import router as asset_router
 from app.routers.indent import router as indent_router
-
+from app.routers.issue import router as issue_router
+from app.routers.receipt import router as receipt_router
+from app.routers.stock_return import router as stock_return_router
+from app.routers.transfer import router as transfer_router
+from app.routers.outward_pass import router as outward_pass_router
+from app.routers.stock import router as stock_router
 
 
 #importing jinja templates
@@ -64,6 +69,14 @@ app.include_router(login_history_router)
 app.include_router(auth_router) # auth router
 app.include_router(asset_router)
 app.include_router(indent_router)
+app.include_router(issue_router)
+app.include_router(receipt_router)
+app.include_router(stock_return_router)
+app.include_router(transfer_router)
+
+app.include_router(outward_pass_router)
+app.include_router(stock_router)
+
 
 
 

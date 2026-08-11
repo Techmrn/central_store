@@ -16,5 +16,9 @@ from .asset_detail import AssetDetail
 from .asset_movement import AssetMovement
 from .indent import Indent
 from .indent_line import IndentLine
-
-
+from .stock_movement import StockMovement
+from .issue import Issue, IssueLine, IssueLineAsset
+from .outward_pass import OutwardPass
+from .receipt import Receipt, ReceiptLine
+from .stock_return import StockReturn, StockReturnLine, StockReturnLineAsset
+from .stock_transfer import StockTransfer, StockTransferLine, StockTransferLineAsset

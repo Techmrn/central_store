@@ -36,4 +36,33 @@ class IndentStatus(str, Enum):
 class RequestSource(str, Enum):
     PHYSICAL = "PHYSICAL"
     ONLINE = "ONLINE"
+
+
+class TransactionStatus(str, Enum):
+    DRAFT = "DRAFT"
+    POSTED = "POSTED"
+    CANCELLED = "CANCELLED"
+
+
+class MovementType(str, Enum):
+    OPENING = "OPENING"
+    RECEIPT = "RECEIPT"
+    ISSUE = "ISSUE"
+    RETURN = "RETURN"
+    TRANSFER_IN = "TRANSFER_IN"
+    TRANSFER_OUT = "TRANSFER_OUT"
+    ADJUSTMENT_IN = "ADJUSTMENT_IN"
+    ADJUSTMENT_OUT = "ADJUSTMENT_OUT"
+
+
+class TransactionSource(str, Enum):
+    OPENING = "OPENING"
+    HISTORICAL = "HISTORICAL"
+    OPERATIONAL = "OPERATIONAL"
+
+
+class DestinationType(str, Enum):
+    INTERNAL = "INTERNAL"
+    EXTERNAL = "EXTERNAL"
+
 

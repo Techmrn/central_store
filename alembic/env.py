@@ -37,6 +37,13 @@ from app.models.asset_detail import AssetDetail
 from app.models.asset_movement import AssetMovement
 from app.models.indent import Indent
 from app.models.indent_line import IndentLine
+from app.models.stock_movement import StockMovement
+from app.models.issue import Issue, IssueLine, IssueLineAsset
+from app.models.outward_pass import OutwardPass
+from app.models.receipt import Receipt, ReceiptLine
+from app.models.stock_return import StockReturn, StockReturnLine, StockReturnLineAsset
+from app.models.stock_transfer import StockTransfer, StockTransferLine, StockTransferLineAsset
+
 
 
 
