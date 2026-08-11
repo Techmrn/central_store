@@ -1,0 +1,153 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Issue Register - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-dark fw-bold">Issue Register</h2>
+            <p class="text-secondary mb-0">View store issue documents, draft issues, and posted transactions</p>
+        </div>
+        <div>
+            <a href="/indents" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> Issue From Indent</a>
+        </div>
+    </div>
+
+    <!-- FILTER CARD -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-funnel me-2"></i>Filter Issues</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="/issues" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Search</label>
+                    <input type="text" name="search" class="form-control" placeholder="Search Issue No, Indent No..." value="{{ search }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Financial Year</label>
+                    <select name="financial_year_id" class="form-select">
+                        <option value="">All Years</option>
+                        {% for fy in financial_years %}
+                        <option value="{{ fy.id }}" {% if financial_year_id_filter == fy.id %}selected{% endif %}>{{ fy.year_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Office</label>
+                    <select name="office_id" class="form-select">
+                        <option value="">All Offices</option>
+                        {% for off in offices %}
+                        <option value="{{ off.id }}" {% if office_id_filter == off.id %}selected{% endif %}>{{ off.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Status</label>
+                    <select name="transaction_status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for st in transaction_statuses %}
+                        <option value="{{ st }}" {% if transaction_status_filter == st %}selected{% endif %}>{{ st }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100 me-2"><i class="bi bi-search me-1"></i>Filter</button>
+                    <a href="/issues" class="btn btn-outline-secondary w-100"><i class="bi bi-arrow-counterclockwise"></i>Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TABLE CARD -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Issue No</th>
+                            <th>Issue Date</th>
+                            <th>Linked Indent</th>
+                            <th>Office</th>
+                            <th>Section</th>
+                            <th>Destination</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if issues %}
+                            {% for issue in issues %}
+                            <tr>
+                                <td class="fw-bold text-primary">{{ issue.issue_no }}</td>
+                                <td>{{ issue.issue_date }}</td>
+                                <td>
+                                    {% if issue.indent %}
+                                        <a href="/indents/{{ issue.indent.id }}" class="fw-bold">{{ issue.indent.indent_no }}</a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ issue.office.name if issue.office else 'N/A' }}</td>
+                                <td>{{ issue.section.name if issue.section else '-' }}</td>
+                                <td>
+                                    {% if issue.destination_type == 'EXTERNAL' %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-box-arrow-up-right me-1"></i>EXTERNAL</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark border">INTERNAL</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if issue.status == 'POSTED' %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>POSTED</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-pencil me-1"></i>DRAFT</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="/issues/{{ issue.id }}/review" class="btn btn-sm {% if issue.status == 'DRAFT' %}btn-warning{% else %}btn-outline-primary{% endif %}">
+                                        <i class="bi bi-eye me-1"></i> {% if issue.status == 'DRAFT' %}Review &amp; Post{% else %}View Document{% endif %}
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">No issue documents found matching your criteria.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PAGINATION -->
+        {% if total_pages > 1 %}
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+            <span class="text-muted small">Showing Page {{ page }} of {{ total_pages }} (Total {{ total }} Issues)</span>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="/issues?page={{ page - 1 }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&transaction_status={{ transaction_status_filter }}">Previous</a>
+                </li>
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="/issues?page={{ p }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&transaction_status={{ transaction_status_filter }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="/issues?page={{ page + 1 }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&transaction_status={{ transaction_status_filter }}">Next</a>
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

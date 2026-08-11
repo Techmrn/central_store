@@ -24,6 +24,8 @@ from app.routers.stock_return import router as stock_return_router
 from app.routers.transfer import router as transfer_router
 from app.routers.outward_pass import router as outward_pass_router
 from app.routers.stock import router as stock_router
+from app.routers.unserviceable import router as unserviceable_router
+
 
 
 #importing jinja templates
@@ -42,6 +44,10 @@ from app.routers.ui import role_permission
 from app.routers.ui import user_role
 from app.routers.ui import login_history
 from app.routers.ui import opening_stock as opening_stock_ui
+from app.routers.ui import unserviceable as unserviceable_ui
+from app.routers.ui import indent as indent_ui
+from app.routers.ui import issue as issue_ui
+
 
 
 
@@ -51,8 +57,27 @@ app = FastAPI(
     version="1.0.0"
 )
 
-#common api s
+# UI routers
+app.include_router(ui_auth.router)
+app.include_router(dashboard.router) #ui router
+app.include_router(indent_ui.router) # indent UI router
+app.include_router(issue_ui.router) # issue UI router
+app.include_router(category.router) #ui router
+app.include_router(unit.router) # adding ui of unit master
+app.include_router(office.router) # adding ui of office master
+app.include_router(section.router) # adding ui of Section master
+app.include_router(item.router) # adding ui of Items master
+app.include_router(financial_year.router) # adding ui of financial year master
+app.include_router(role.router) # adding ui of role master
+app.include_router(user.router) # adding ui of user master
+app.include_router(permission.router) # adding ui of permission master
+app.include_router(role_permission.router)
+app.include_router(user_role.router)
+app.include_router(login_history.router)
+app.include_router(opening_stock_ui.router)
+app.include_router(unserviceable_ui.router)
 
+# REST API routers
 app.include_router(category_router)
 app.include_router(unit_router)  # Include the unit router
 app.include_router(office_router)  # Include the office router
@@ -76,28 +101,8 @@ app.include_router(transfer_router)
 
 app.include_router(outward_pass_router)
 app.include_router(stock_router)
+app.include_router(unserviceable_router)
 
-
-
-
-
-#ui api s
-
-app.include_router(ui_auth.router)
-app.include_router(dashboard.router) #ui router
-app.include_router(category.router) #ui router
-app.include_router(unit.router) # adding ui of unit master
-app.include_router(office.router) # adding ui of office master
-app.include_router(section.router) # adding ui of Section master
-app.include_router(item.router) # adding ui of Items master
-app.include_router(financial_year.router) # adding ui of financial year master
-app.include_router(role.router) # adding ui of role master
-app.include_router(user.router) # adding ui of user master
-app.include_router(permission.router) # adding ui of permission master
-app.include_router(role_permission.router)
-app.include_router(user_role.router)
-app.include_router(login_history.router)
-app.include_router(opening_stock_ui.router)
 
 
 

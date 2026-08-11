@@ -1,110 +1,194 @@
 {% extends "layout/base.html" %}
 
 {% block title %}
-Dashboard
+Storekeeper Dashboard - Central Store ERP
 {% endblock %}
 
 {% block content %}
-
 <div class="container-fluid">
-
-    <h2 class="mb-4">
-        Dashboard
-    </h2>
-
-    <div class="row">
-
-        <div class="col-md-3">
-
-            <div class="card shadow-sm">
-
-                <div class="card-body">
-
-                    <h5>Categories</h5>
-
-                    <h2>18</h2>
-
-                </div>
-
-            </div>
-
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-dark fw-bold">Storekeeper Dashboard</h2>
+            <p class="text-secondary mb-0">Operational Overview &amp; Store Management Controls</p>
         </div>
-
-        <div class="col-md-3">
-
-            <div class="card shadow-sm">
-
-                <div class="card-body">
-
-                    <h5>Items</h5>
-
-                    <h2>1250</h2>
-
-                </div>
-
-            </div>
-
+        <div>
+            <a href="/indents/entry" class="btn btn-primary"><i class="bi bi-file-earmark-plus me-1"></i> Record Physical Indent</a>
+            <a href="/indents" class="btn btn-outline-primary me-1"><i class="bi bi-journal-text me-1"></i> Physical Indent Register</a>
         </div>
-
-        <div class="col-md-3">
-
-            <div class="card shadow-sm">
-
-                <div class="card-body">
-
-                    <h5>Offices</h5>
-
-                    <h2>25</h2>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="col-md-3">
-
-            <div class="card shadow-sm">
-
-                <div class="card-body">
-
-                    <h5>Pending Requests</h5>
-
-                    <h2>7</h2>
-
-                </div>
-
-            </div>
-
-        </div>
-
     </div>
 
-    <div class="card mt-4 shadow-sm">
-
-        <div class="card-header">
-            Welcome
+    <!-- OPERATIONAL METRIC CARDS -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-primary border-4 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-secondary small fw-bold text-uppercase">Actionable Indents</span>
+                            <h2 class="mb-0 text-primary mt-1 fw-bold">{{ actionable_indents_count }}</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary">
+                            <i class="bi bi-hourglass-split fs-3"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Requires Storekeeper Action</small>
+                </div>
+            </div>
         </div>
 
-        <div class="card-body">
-
-            <h4>Central Stock Management System</h4>
-
-            <p>
-
-                Welcome to the Central Stock Management System.
-
-                This dashboard will later show inventory statistics,
-                stock alerts, pending approvals,
-                recent transactions,
-                and reports.
-
-            </p>
-
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-warning border-4 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-secondary small fw-bold text-uppercase">Unserviceable Items</span>
+                            <h2 class="mb-0 text-warning mt-1 fw-bold">{{ unserviceable_count }}</h2>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle text-warning">
+                            <i class="bi bi-exclamation-triangle fs-3"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Damaged or under repair</small>
+                </div>
+            </div>
         </div>
 
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-success border-4 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-secondary small fw-bold text-uppercase">Total Items Master</span>
+                            <h2 class="mb-0 text-success mt-1 fw-bold">{{ total_items }}</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle text-success">
+                            <i class="bi bi-boxes fs-3"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Active Stock Items</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-info border-4 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-secondary small fw-bold text-uppercase">Total Assets</span>
+                            <h2 class="mb-0 text-info mt-1 fw-bold">{{ total_assets }}</h2>
+                        </div>
+                        <div class="bg-info bg-opacity-10 p-3 rounded-circle text-info">
+                            <i class="bi bi-laptop fs-3"></i>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Registered Equipment</small>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- RECENT TRANSACTIONS TABLES -->
+    <div class="row g-4">
+        <!-- Recent Actionable Indents -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Recent Indents</h5>
+                    <a href="/indents" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Indent No</th>
+                                    <th>Office</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if recent_indents %}
+                                    {% for ind in recent_indents %}
+                                    <tr>
+                                        <td class="fw-bold">{{ ind.indent_no }}</td>
+                                        <td>{{ ind.office.name if ind.office else 'N/A' }}</td>
+                                        <td>
+                                            {% if ind.status == 'DRAFT' %}
+                                                <span class="badge bg-secondary">DRAFT</span>
+                                            {% elif ind.status == 'SUBMITTED' or ind.status == 'SENT_TO_STORE' %}
+                                                <span class="badge bg-warning text-dark">SENT TO STORE</span>
+                                            {% elif ind.status == 'PROCESSING' %}
+                                                <span class="badge bg-primary">PROCESSING</span>
+                                            {% elif ind.status == 'CLOSED' %}
+                                                <span class="badge bg-success">CLOSED</span>
+                                            {% else %}
+                                                <span class="badge bg-info">{{ ind.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            <a href="/indents/view/{{ ind.id }}" class="btn btn-sm btn-primary">Process</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">No recent indents found.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Store Issues -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-box-arrow-right text-success me-2"></i>Recent Issues</h5>
+                    <a href="/issues" class="btn btn-sm btn-outline-secondary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Issue No</th>
+                                    <th>Date</th>
+                                    <th>Office</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if recent_issues %}
+                                    {% for issue in recent_issues %}
+                                    <tr>
+                                        <td class="fw-bold"><a href="/issues/view/{{ issue.id }}">{{ issue.issue_no }}</a></td>
+                                        <td>{{ issue.issue_date }}</td>
+                                        <td>{{ issue.office.name if issue.office else 'N/A' }}</td>
+                                        <td>
+                                            {% if issue.status == 'POSTED' %}
+                                                <span class="badge bg-success">POSTED</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">DRAFT</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">No recent issues found.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-
-{% endblock %}
+{% endblock %}

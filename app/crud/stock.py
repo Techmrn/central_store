@@ -20,7 +20,8 @@ from app.schemas.stock import (
     ItemTransactionRegisterItem,
     StockBalanceRead,
 )
-from app.services.stock_service import get_item_stock
+from app.services.stock_service import get_item_stock, get_item_unserviceable_stock, get_item_usable_stock
+
 
 
 def get_stock_balances(
@@ -65,6 +66,8 @@ def get_stock_balances(
     result_items = []
     for item in pagination["items"]:
         balance = get_item_stock(db, item_id=item.id, office_id=office_id)
+        unserviceable = get_item_unserviceable_stock(db, item_id=item.id, office_id=office_id)
+        usable = get_item_usable_stock(db, item_id=item.id, office_id=office_id)
         result_items.append(
             StockBalanceRead(
                 item_id=item.id,
@@ -75,8 +78,11 @@ def get_stock_balances(
                 office_id=office_id,
                 office_name=off_name,
                 current_stock=balance,
+                unserviceable_stock=unserviceable,
+                usable_stock=usable,
             )
         )
+
 
     pagination["items"] = result_items
     return pagination

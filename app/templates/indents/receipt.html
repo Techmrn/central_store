@@ -1,0 +1,118 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Indent Completed - Receipt - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3 d-print-none">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/indents">Physical Indents</a></li>
+            <li class="breadcrumb-item active">Transaction Receipt</li>
+        </ol>
+    </nav>
+
+    <!-- SUCCESS BANNER -->
+    <div class="alert alert-success border-0 shadow-sm d-flex align-items-center mb-4 p-4">
+        <div class="bg-success text-white p-3 rounded-circle me-3">
+            <i class="bi bi-check-lg fs-2"></i>
+        </div>
+        <div>
+            <h4 class="alert-heading fw-bold mb-1">Physical Indent Completed &amp; Posted Successfully!</h4>
+            <p class="mb-0">Indent <strong>#{{ indent.indent_no }}</strong> has been recorded, issued, and closed. Stock inventory and ledger balances have been updated atomically.</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-receipt text-primary me-2"></i>Transaction Summary Receipt</h5>
+            <div class="d-print-none">
+                <button onclick="window.print()" class="btn btn-outline-secondary btn-sm me-1"><i class="bi bi-printer me-1"></i> Print Receipt</button>
+                <a href="/indents/entry" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i> Record Another Indent</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <span class="text-muted small fw-bold text-uppercase d-block">Printed Indent / Letter No</span>
+                    <span class="fs-4 fw-bold text-primary">{{ indent.indent_no }}</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small fw-bold text-uppercase d-block">Generated Issue Document</span>
+                    <span class="fs-4 fw-bold text-success">{{ issue.issue_no if issue else 'N/A' }}</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small fw-bold text-uppercase d-block">Transaction Date</span>
+                    <span class="fs-5 fw-bold text-dark">{{ indent.indent_date }}</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small fw-bold text-uppercase d-block">Status</span>
+                    <span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i> COMPLETED / CLOSED</span>
+                </div>
+                <div class="col-md-4">
+                    <span class="text-muted small fw-bold text-uppercase d-block">Store / Office</span>
+                    <span class="fw-bold">{{ indent.office.name if indent.office else 'N/A' }}</span>
+                </div>
+                <div class="col-md-4">
+                    <span class="text-muted small fw-bold text-uppercase d-block">Requesting Section</span>
+                    <span class="fw-bold">{{ indent.section.name if indent.section else 'General Store' }}</span>
+                </div>
+                <div class="col-md-4">
+                    <span class="text-muted small fw-bold text-uppercase d-block">Reference No</span>
+                    <span class="fw-bold">{{ indent.reference_no if indent.reference_no else '-' }}</span>
+                </div>
+            </div>
+
+            <!-- ISSUED ITEMS TABLE -->
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-box-seam text-primary me-2"></i>Issued Stock Items</h6>
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th>Item Name &amp; Code</th>
+                            <th style="width: 10%;">Unit</th>
+                            <th style="width: 15%;" class="text-end">Requested Qty</th>
+                            <th style="width: 15%;" class="text-end bg-success bg-opacity-10 fw-bold">Issued Qty</th>
+                            <th style="width: 25%;">Remarks / Asset Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in indent.lines %}
+                        {% if line.is_active %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <div class="fw-bold">{{ line.item.name if line.item else 'N/A' }}</div>
+                                <small class="text-muted font-monospace">{{ line.item.code if line.item else '' }}</small>
+                            </td>
+                            <td>{{ line.item.unit.symbol if (line.item and line.item.unit) else '-' }}</td>
+                            <td class="text-end">{{ line.requested_quantity }}</td>
+                            <td class="text-end fw-bold fs-5 text-success bg-success bg-opacity-10">{{ line.issued_quantity }}</td>
+                            <td>{{ line.remarks if line.remarks else '-' }}</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if issue and issue.destination_type.value == 'EXTERNAL' %}
+            <div class="alert alert-warning d-flex justify-content-between align-items-center mb-0 d-print-none">
+                <div>
+                    <i class="bi bi-box-arrow-up-right me-2 fs-4"></i>
+                    <strong>External Destination Issue:</strong> This issue is marked for external delivery. Generate an Outward Pass for gate clearance.
+                </div>
+                <a href="/issues/view/{{ issue.id }}" class="btn btn-warning btn-sm"><i class="bi bi-passport me-1"></i> Outward Pass Action</a>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer bg-light py-3 d-flex justify-content-between align-items-center d-print-none">
+            <a href="/indents" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back to Physical Indents</a>
+            <a href="/indents/entry" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Record Another Physical Indent</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

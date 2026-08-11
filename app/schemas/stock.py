@@ -14,6 +14,9 @@ class StockBalanceRead(BaseModel):
     office_id: Optional[int] = None
     office_name: Optional[str] = None
     current_stock: float
+    unserviceable_stock: float = 0.0
+    usable_stock: float = 0.0
+
 
 
 class StockMovementRead(BaseModel):

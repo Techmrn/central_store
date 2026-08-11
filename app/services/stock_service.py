@@ -2,9 +2,10 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.enums import MovementType, TransactionSource
+from app.models.enums import MovementType, TransactionSource, UnserviceableStatus
 from app.models.opening_stock import OpeningStock
 from app.models.stock_movement import StockMovement
+from app.models.unserviceable_material import UnserviceableMaterial
 
 
 def get_item_stock(
@@ -13,11 +14,11 @@ def get_item_stock(
     office_id: Optional[int] = None,
 ) -> float:
     """
-    Calculate total current available stock for an Item.
-    Current Stock = Opening Stock + Receipts + Returns + Transfer In + Adjustment In - Issues - Transfer Out - Adjustment Out
+    Calculate Total Physical Stock for an Item.
+    Physical Stock = Opening Stock + Receipts + Returns + Transfer In + Adjustment In - Issues - Transfer Out - Adjustment Out
     Excludes historical audit transactions (transaction_source == HISTORICAL).
+    Double-counting protection: If OPENING StockMovement exists, OpeningStock model is not added twice.
     """
-    # 1. Sum stock movements
     sm_query = db.query(
         func.coalesce(func.sum(StockMovement.quantity_in - StockMovement.quantity_out), 0)
     ).filter(
@@ -31,7 +32,6 @@ def get_item_stock(
 
     movement_balance = float(sm_query.scalar() or 0.0)
 
-    # 2. Check if OPENING movement exists in stock_movements
     has_opening_movement_query = db.query(StockMovement).filter(
         StockMovement.item_id == item_id,
         StockMovement.movement_type == MovementType.OPENING,
@@ -42,7 +42,6 @@ def get_item_stock(
 
     has_opening_movement = has_opening_movement_query.first() is not None
 
-    # If opening stock movement isn't explicitly in StockMovement table, add from OpeningStock table
     opening_balance = 0.0
     if not has_opening_movement:
         op_query = db.query(func.coalesce(func.sum(OpeningStock.quantity), 0)).filter(
@@ -57,6 +56,49 @@ def get_item_stock(
     return round(total_stock, 2)
 
 
+def get_item_unserviceable_stock(
+    db: Session,
+    item_id: int,
+    office_id: Optional[int] = None,
+) -> float:
+    """
+    Calculate current active unserviceable material quantity for an Item.
+    Includes materials currently in UNSERVICEABLE or UNDER_REPAIR status.
+    Excludes REPAIRED, CONDEMNED, or DISPOSED materials.
+    """
+    un_query = db.query(
+        func.coalesce(func.sum(UnserviceableMaterial.quantity), 0)
+    ).filter(
+        UnserviceableMaterial.item_id == item_id,
+        UnserviceableMaterial.is_active == True,
+        UnserviceableMaterial.status.in_([
+            UnserviceableStatus.UNSERVICEABLE,
+            UnserviceableStatus.UNDER_REPAIR,
+        ]),
+    )
+
+    if office_id is not None:
+        un_query = un_query.filter(UnserviceableMaterial.office_id == office_id)
+
+    unserviceable_qty = float(un_query.scalar() or 0.0)
+    return round(unserviceable_qty, 2)
+
+
+def get_item_usable_stock(
+    db: Session,
+    item_id: int,
+    office_id: Optional[int] = None,
+) -> float:
+    """
+    Calculate Serviceable / Usable Stock for an Item.
+    Usable Stock = Physical Stock - Unserviceable Quantity.
+    """
+    physical_stock = get_item_stock(db, item_id=item_id, office_id=office_id)
+    unserviceable_stock = get_item_unserviceable_stock(db, item_id=item_id, office_id=office_id)
+    usable_stock = physical_stock - unserviceable_stock
+    return round(max(0.0, usable_stock), 2)
+
+
 def validate_stock_availability(
     db: Session,
     item_id: int,
@@ -64,12 +106,16 @@ def validate_stock_availability(
     required_qty: float,
 ) -> bool:
     """
-    Check if available stock is >= required_qty.
+    Check if usable stock is >= required_qty.
     Raises ValueError if stock is insufficient.
     """
-    current = get_item_stock(db, item_id=item_id, office_id=office_id)
-    if current < required_qty:
+    usable = get_item_usable_stock(db, item_id=item_id, office_id=office_id)
+    if usable < required_qty:
+        physical = get_item_stock(db, item_id=item_id, office_id=office_id)
+        unserviceable = get_item_unserviceable_stock(db, item_id=item_id, office_id=office_id)
         raise ValueError(
-            f"Insufficient stock for item ID {item_id}. Available: {current}, Requested: {required_qty}."
+            f"Insufficient stock for item ID {item_id}. Usable stock: {usable} (Physical: {physical}, Unserviceable: {unserviceable}), Requested: {required_qty}."
         )
+
     return True
+

@@ -49,4 +49,11 @@ def get_current_user_ui(
             headers={"Location": "/login"},
         )
 
+    try:
+        from app.services.permission_service import get_user_permissions
+        perms = get_user_permissions(db, user.id)
+        user.perm_codes = {p.code for p in perms}
+    except Exception:
+        user.perm_codes = set()
+
     return user

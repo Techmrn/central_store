@@ -22,6 +22,8 @@ from app.schemas.stock import (
     StockBalanceRead,
     StockMovementRead,
 )
+from app.schemas.unserviceable import UnserviceableRegisterItem
+
 
 router = APIRouter(
     prefix="/stock",
@@ -175,3 +177,35 @@ def get_ewaste_register_endpoint(
         office_id=office_id,
         page=page,
     )
+
+
+@router.get(
+    "/unserviceable-register",
+    response_model=PaginatedResponse[UnserviceableRegisterItem],
+    summary="Get Unserviceable Asset / Item Register Report",
+)
+def get_unserviceable_register_endpoint(
+    financial_year_id: Optional[int] = None,
+    office_id: Optional[int] = None,
+    section_id: Optional[int] = None,
+    item_id: Optional[int] = None,
+    category_id: Optional[int] = None,
+    asset_or_material: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    page: int = 1,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("STOCK_VIEW")),
+):
+    from app.crud.unserviceable import get_unserviceable_register_report
+    return get_unserviceable_register_report(
+        db=db,
+        financial_year_id=financial_year_id,
+        office_id=office_id,
+        section_id=section_id,
+        item_id=item_id,
+        category_id=category_id,
+        asset_or_material=asset_or_material,
+        status_filter=status_filter,
+        page=page,
+    )
+

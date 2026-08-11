@@ -1,0 +1,86 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Issue Posted - {{ issue.issue_no }} - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-9">
+            <!-- SUCCESS BANNER -->
+            <div class="card shadow border-success mb-4 text-center py-4 bg-success bg-opacity-10">
+                <div class="card-body">
+                    <div class="mb-3 text-success">
+                        <i class="bi bi-check-circle-fill display-1"></i>
+                    </div>
+                    <h2 class="fw-bold text-success">Issue Document Posted Successfully!</h2>
+                    <p class="text-secondary fs-5 mb-0">Stock balances have been deducted and linked Indent has been closed.</p>
+                </div>
+            </div>
+
+            <!-- POSTED DOCUMENT CARD -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-check text-success me-2"></i>Posted Issue Details</h5>
+                    <span class="badge bg-success fs-6"><i class="bi bi-lock-fill me-1"></i>POSTED</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <span class="text-muted small d-block">Issue Number</span>
+                            <strong class="font-monospace text-primary fs-5">{{ issue.issue_no }}</strong>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="text-muted small d-block">Issue Date</span>
+                            <strong class="text-dark">{{ issue.issue_date }}</strong>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="text-muted small d-block">Office</span>
+                            <strong class="text-dark">{{ issue.office.name if issue.office else 'N/A' }}</strong>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="text-muted small d-block">Linked Indent Status</span>
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>CLOSED</span>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold mb-2">Issued Line Items:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Item Code &amp; Name</th>
+                                    <th>Unit</th>
+                                    <th class="text-end">Issued Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in issue.lines %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <div class="fw-bold">{{ line.item.name if line.item else 'Item' }}</div>
+                                        <small class="text-muted font-monospace">{{ line.item.code if line.item else '' }}</small>
+                                    </td>
+                                    <td>{{ line.unit.symbol if line.unit else '-' }}</td>
+                                    <td class="text-end fw-bold text-success fs-5">{{ line.quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-light py-3 d-flex justify-content-between">
+                    <a href="/indents" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-text me-1"></i> Back to Indents</a>
+                    <div>
+                        <a href="/issues" class="btn btn-outline-primary me-2"><i class="bi bi-list-ul me-1"></i> Issue Register</a>
+                        <a href="/opening-stock" class="btn btn-success"><i class="bi bi-boxes me-1"></i> View Stock Balances</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

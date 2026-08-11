@@ -20,6 +20,19 @@ class AssetMovementType(str, Enum):
     ISSUE = "ISSUE"
     TRANSFER = "TRANSFER"
     RETURN = "RETURN"
+    UNSERVICEABLE = "UNSERVICEABLE"
+    REPAIR = "REPAIR"
+    CONDEMNATION = "CONDEMNATION"
+    DISPOSAL = "DISPOSAL"
+
+
+class UnserviceableStatus(str, Enum):
+    UNSERVICEABLE = "UNSERVICEABLE"
+    UNDER_REPAIR = "UNDER_REPAIR"
+    REPAIRED = "REPAIRED"
+    CONDEMNED = "CONDEMNED"
+    DISPOSED = "DISPOSED"
+
 
 
 class IndentStatus(str, Enum):

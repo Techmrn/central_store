@@ -1,0 +1,271 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Create Issue Document - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/indents">Indents</a></li>
+            <li class="breadcrumb-item"><a href="/indents/{{ indent.id }}">{{ indent.indent_no }}</a></li>
+            <li class="breadcrumb-item active">Create Issue</li>
+        </ol>
+    </nav>
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-dark fw-bold">Create Issue Document</h2>
+            <p class="text-secondary mb-0">Generate Draft Store Issue Document for Indent <strong>{{ indent.indent_no }}</strong></p>
+        </div>
+    </div>
+
+    <form id="createIssueForm" action="/issues/create" method="POST">
+        <input type="hidden" name="indent_id" value="{{ indent.id }}">
+        <input type="hidden" name="financial_year_id" value="{{ indent.financial_year_id }}">
+        <input type="hidden" name="office_id" value="{{ indent.office_id }}">
+        <input type="hidden" name="section_id" value="{{ indent.section_id or '' }}">
+
+        <!-- HEADER CARD -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-card-heading text-primary me-2"></i>Issue Header &amp; Destination Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Proposed Issue No</label>
+                        <input type="text" class="form-control bg-light font-monospace fw-bold text-primary" value="{{ proposed_issue_no }}" readonly>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Issue Date</label>
+                        <input type="date" name="issue_date" class="form-control" value="{{ today_date }}" readonly>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Destination Type <span class="text-danger">*</span></label>
+                        <select name="destination_type" id="destinationTypeSelect" class="form-select fw-bold">
+                            {% for dt in destination_types %}
+                            <option value="{{ dt }}">{{ dt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Reference / Gate Pass No</label>
+                        <input type="text" name="reference_no" class="form-control" placeholder="Optional Gate Pass / Ref No">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Office &amp; Section</label>
+                        <input type="text" class="form-control bg-light" value="{{ indent.office.name if indent.office else '' }} - {{ indent.section.name if indent.section else 'General Store' }}" readonly>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Remarks</label>
+                        <input type="text" name="remarks" class="form-control" placeholder="Storekeeper issue remarks...">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LINE ITEMS CARD -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-list-stars text-primary me-2"></i>Line Items &amp; Asset Allocation</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 25%;">Item Name &amp; Code</th>
+                                <th style="width: 10%;">Unit</th>
+                                <th style="width: 12%;" class="text-end bg-secondary bg-opacity-10">Requested Qty</th>
+                                <th style="width: 12%;" class="text-center">Usable Stock</th>
+                                <th style="width: 15%;">Issue Qty <span class="text-danger">*</span></th>
+                                <th style="width: 21%;">Asset Allocation / Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item_data in prepared_lines %}
+                            {% set line = item_data.line %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <div class="fw-bold">{{ line.item.name }}</div>
+                                    <small class="text-muted font-monospace">{{ line.item.code }}</small>
+                                    {% if item_data.is_asset %}
+                                        <span class="badge bg-info text-dark ms-1"><i class="bi bi-laptop me-1"></i>ASSET</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ line.item.unit.symbol if line.item.unit else '-' }}</td>
+                                <td class="text-end fw-bold bg-secondary bg-opacity-10">{{ line.requested_quantity }}</td>
+                                <td class="text-center">
+                                    <span class="badge {% if item_data.usable_stock >= line.requested_quantity %}bg-success{% elif item_data.usable_stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6 px-2 py-1">
+                                        Usable: {{ item_data.usable_stock }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <input type="number" 
+                                           step="any" 
+                                           min="0" 
+                                           max="{{ line.requested_quantity }}" 
+                                           name="qty_{{ line.id }}" 
+                                           id="qty_{{ line.id }}" 
+                                           class="form-control fw-bold text-primary issue-qty-input" 
+                                           data-line-id="{{ line.id }}"
+                                           data-requested="{{ line.requested_quantity }}"
+                                           data-usable="{{ item_data.usable_stock }}"
+                                           data-is-asset="{% if item_data.is_asset %}true{% else %}false{% endif %}"
+                                           value="{{ item_data.default_qty }}">
+                                </td>
+                                <td>
+                                    {% if item_data.is_asset %}
+                                        <div class="mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-info w-100 text-start" data-bs-toggle="modal" data-bs-target="#assetModal_{{ line.id }}">
+                                                <i class="bi bi-ui-checks me-1"></i> Select Assets (<span id="assetCount_{{ line.id }}">0</span> selected)
+                                            </button>
+                                        </div>
+
+                                        <!-- ASSET SELECTION MODAL -->
+                                        <div class="modal fade" id="assetModal_{{ line.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-lg">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-primary text-white">
+                                                        <h5 class="modal-title"><i class="bi bi-laptop me-2"></i>Select Assets for {{ line.item.name }}</h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p class="small text-muted mb-3">Only physical assets currently in <code>IN_STORE</code> status are selectable. You must select exactly <strong><span class="target-qty-modal-{{ line.id }}">{{ item_data.default_qty }}</span></strong> asset(s).</p>
+                                                        
+                                                        {% if item_data.available_assets %}
+                                                        <div class="table-responsive">
+                                                            <table class="table table-hover table-bordered align-middle">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th style="width: 10%;">Select</th>
+                                                                        <th>Asset No</th>
+                                                                        <th>Serial No</th>
+                                                                        <th>Make / Model</th>
+                                                                        <th>Status</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {% for ast in item_data.available_assets %}
+                                                                    <tr>
+                                                                        <td class="text-center">
+                                                                            <input type="checkbox" 
+                                                                                   name="assets_{{ line.id }}" 
+                                                                                   value="{{ ast.id }}" 
+                                                                                   class="form-check-input asset-checkbox-{{ line.id }}" 
+                                                                                   data-line-id="{{ line.id }}">
+                                                                        </td>
+                                                                        <td class="fw-bold font-monospace">{{ ast.asset_no }}</td>
+                                                                        <td>{{ ast.serial_no or '-' }}</td>
+                                                                        <td>{{ ast.remarks or 'Standard Specification' }}</td>
+                                                                        <td><span class="badge bg-success">IN_STORE</span></td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        {% else %}
+                                                        <div class="alert alert-warning mb-0">
+                                                            <i class="bi bi-exclamation-triangle me-2"></i>No available <code>IN_STORE</code> assets found for this item in this office.
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Done Selection</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <input type="text" name="remarks_{{ line.id }}" class="form-control form-control-sm" placeholder="Line remarks...">
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light py-3 d-flex justify-content-between align-items-center">
+                <a href="/indents/{{ indent.id }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back to Indent</a>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="bi bi-check-circle me-1"></i> Generate Draft Issue Document
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Update asset checkboxes counter & target count display
+    const qtyInputs = document.querySelectorAll(".issue-qty-input");
+
+    qtyInputs.forEach(input => {
+        const lineId = input.getAttribute("data-line-id");
+        const isAsset = input.getAttribute("data-is-asset") === "true";
+
+        function updateAssetCounters() {
+            if (!isAsset) return;
+            const targetVal = parseInt(input.value) || 0;
+            const targetSpans = document.querySelectorAll(`.target-qty-modal-${lineId}`);
+            targetSpans.forEach(s => s.textContent = targetVal);
+
+            const checkboxes = document.querySelectorAll(`.asset-checkbox-${lineId}:checked`);
+            const countSpan = document.getElementById(`assetCount_${lineId}`);
+            if (countSpan) countSpan.textContent = checkboxes.length;
+        }
+
+        input.addEventListener("input", updateAssetCounters);
+        updateAssetCounters();
+
+        if (isAsset) {
+            const checkboxes = document.querySelectorAll(`.asset-checkbox-${lineId}`);
+            checkboxes.forEach(cb => {
+                cb.addEventListener("change", updateAssetCounters);
+            });
+        }
+    });
+
+    const form = document.getElementById("createIssueForm");
+    form.addEventListener("submit", function(e) {
+        let valid = true;
+
+        qtyInputs.forEach(input => {
+            const lineId = input.getAttribute("data-line-id");
+            const isAsset = input.getAttribute("data-is-asset") === "true";
+            const val = parseFloat(input.value) || 0;
+
+            if (isAsset && val > 0) {
+                const checkboxes = document.querySelectorAll(`.asset-checkbox-${lineId}:checked`);
+                if (checkboxes.length !== parseInt(val)) {
+                    valid = false;
+                    alert(`Selected asset count (${checkboxes.length}) must equal issued quantity (${parseInt(val)}) for asset line #${lineId}`);
+                }
+            }
+        });
+
+        if (!valid) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

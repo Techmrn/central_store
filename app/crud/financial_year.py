@@ -26,6 +26,17 @@ def get_all_financial_years(db: Session):
     )
 
 
+def get_current_financial_year(db: Session):
+    return (
+        db.query(FinancialYear)
+        .filter(
+            FinancialYear.is_current == True,
+            FinancialYear.is_active == True,
+        )
+        .first()
+    )
+
+
 def get_financial_year_by_id(db: Session, financial_year_id: int):
     return (
         db.query(FinancialYear)

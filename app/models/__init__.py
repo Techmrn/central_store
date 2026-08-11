@@ -22,3 +22,5 @@ from .outward_pass import OutwardPass
 from .receipt import Receipt, ReceiptLine
 from .stock_return import StockReturn, StockReturnLine, StockReturnLineAsset
 from .stock_transfer import StockTransfer, StockTransferLine, StockTransferLineAsset
+from .unserviceable_material import UnserviceableMaterial
+

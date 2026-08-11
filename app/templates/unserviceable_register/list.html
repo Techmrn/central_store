@@ -1,0 +1,139 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Unserviceable Asset / Item Register
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item">Inventory</li>
+        <li class="breadcrumb-item active">Unserviceable Register</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h3 font-weight-bold text-gray-800 mb-1">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Unserviceable Asset / Item Register
+        </h2>
+        <p class="text-muted small mb-0">Track assets and store materials currently unserviceable, under repair, or condemned.</p>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-light d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Filter Register</h6>
+        <form method="get" action="/unserviceable-register" class="form-inline d-flex gap-2">
+            <select name="asset_or_material" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="" {% if not asset_or_material %}selected{% endif %}>All Types (Asset & Material)</option>
+                <option value="ASSET" {% if asset_or_material == 'ASSET' %}selected{% endif %}>Asset Only</option>
+                <option value="MATERIAL" {% if asset_or_material == 'MATERIAL' %}selected{% endif %}>Material Only</option>
+            </select>
+            <select name="status_filter" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                <option value="UNSERVICEABLE" {% if status_filter == 'UNSERVICEABLE' %}selected{% endif %}>Unserviceable</option>
+                <option value="DAMAGED" {% if status_filter == 'DAMAGED' %}selected{% endif %}>Damaged</option>
+                <option value="UNDER_REPAIR" {% if status_filter == 'UNDER_REPAIR' %}selected{% endif %}>Under Repair</option>
+                <option value="CONDEMNED" {% if status_filter == 'CONDEMNED' %}selected{% endif %}>Condemned</option>
+                <option value="E_WASTE" {% if status_filter == 'E_WASTE' %}selected{% endif %}>E-Waste</option>
+                <option value="DISPOSED" {% if status_filter == 'DISPOSED' %}selected{% endif %}>Disposed</option>
+            </select>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Type</th>
+                        <th>Item</th>
+                        <th>Asset No / Ref</th>
+                        <th>Serial No</th>
+                        <th>Office / Section</th>
+                        <th class="text-end">Quantity</th>
+                        <th>Status</th>
+                        <th>Date Reported</th>
+                        <th>Reason / Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if items %}
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                {% if item.register_type == 'ASSET' %}
+                                <span class="badge bg-info text-dark"><i class="bi bi-laptop me-1"></i>Asset</span>
+                                {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-box-seam me-1"></i>Material</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ item.item_name }}</strong>
+                                <br><small class="text-muted">Code: {{ item.item_code }} | Cat: {{ item.category_name }}</small>
+                            </td>
+                            <td>
+                                {% if item.asset_no %}
+                                <code>{{ item.asset_no }}</code>
+                                {% else %}
+                                <span class="text-muted">{{ item.reference_no or '-' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.serial_no or '-' }}</td>
+                            <td>
+                                {{ item.office_name }}
+                                {% if item.section_name %}
+                                <br><small class="text-muted">{{ item.section_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <strong>{{ item.quantity }}</strong>
+                                {% if item.unit_name %}<small class="text-muted">{{ item.unit_name }}</small>{% endif %}
+                            </td>
+                            <td>
+                                {% if item.status in ['DAMAGED', 'UNSERVICEABLE'] %}
+                                <span class="badge bg-danger">{{ item.status }}</span>
+                                {% elif item.status == 'UNDER_REPAIR' %}
+                                <span class="badge bg-warning text-dark">{{ item.status }}</span>
+                                {% elif item.status == 'CONDEMNED' %}
+                                <span class="badge bg-dark">{{ item.status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ item.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td><small>{{ item.date_reported.strftime('%d-%b-%Y') if item.date_reported else '-' }}</small></td>
+                            <td>
+                                {{ item.reason }}
+                                {% if item.remarks %}
+                                <br><small class="text-muted">{{ item.remarks }}</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-3 d-block mb-2"></i> No unserviceable asset or material records found.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing page {{ page }} of {{ pages }} (Total {{ total }} items)</small>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}">Previous</a>
+            </li>
+            <li class="page-item {% if page >= pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}">Next</a>
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -130,7 +130,13 @@ PERMISSIONS = [
     # Outward Pass
     ("Outward Pass", "View", "View outward pass records"),
     ("Outward Pass", "Create", "Create outward pass records"),
+
+    # Unserviceable
+    ("Unserviceable", "View", "View unserviceable register records"),
+    ("Unserviceable", "Create", "Create unserviceable material records"),
+    ("Unserviceable", "Update", "Update unserviceable status records"),
 ]
+
 
 
 
