@@ -27,8 +27,8 @@ from app.crud.indent import (
     update_indent,
 )
 from app.crud.issue import create_issue
-from app.crud.office import get_all_offices
-from app.crud.section import get_all_sections
+from app.crud.office import get_all_offices_dropdown
+from app.crud.section import get_all_sections_dropdown
 from app.crud.financial_year import get_all_financial_years, get_current_financial_year
 from app.services.posting_service import post_issue
 
@@ -73,8 +73,8 @@ def list_indents_ui(
         page=page,
     )
 
-    offices = get_all_offices(db)
-    sections = get_all_sections(db)
+    offices = get_all_offices_dropdown(db)
+    sections = get_all_sections_dropdown(db)
     financial_years = get_all_financial_years(db)
 
     return templates.TemplateResponse(
@@ -114,8 +114,8 @@ def record_physical_indent_ui(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_ui),
 ):
-    offices = get_all_offices(db)
-    sections = get_all_sections(db)
+    offices = get_all_offices_dropdown(db)
+    sections = get_all_sections_dropdown(db)
     items = db.query(Item).filter(Item.is_active == True).order_by(Item.name).all()
 
     return templates.TemplateResponse(

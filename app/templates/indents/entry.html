@@ -68,11 +68,8 @@ Record Physical Indent - Central Store ERP
 
                     <div class="col-md-3">
                         <label for="section_id" class="form-label fw-bold">Requesting Section</label>
-                        <select class="form-select form-select-lg" id="section_id" name="section_id">
-                            <option value="">-- Optional / General Store --</option>
-                            {% for sec in sections %}
-                            <option value="{{ sec.id }}">{{ sec.name }} ({{ sec.office.name if sec.office else '' }})</option>
-                            {% endfor %}
+                        <select class="form-select form-select-lg" id="section_id" name="section_id" data-selected-section="{{ form_data.section_id if form_data else '' }}">
+                            <option value="">Select Section</option>
                         </select>
                     </div>
 
@@ -283,6 +280,39 @@ document.addEventListener('DOMContentLoaded', () => {
     createRow();
 
     // Form actions
+    const officeSelect = document.getElementById('office_id');
+    const sectionSelect = document.getElementById('section_id');
+
+    function loadSections(officeId, selectedSectionId = '') {
+        sectionSelect.innerHTML = '<option value="">Select Section</option>';
+        if (!officeId) return;
+
+        fetch(`/section/by-office/${officeId}`)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section.id;
+                    option.textContent = section.name;
+                    if (selectedSectionId && selectedSectionId.toString() === section.id.toString()) {
+                        option.selected = true;
+                    }
+                    sectionSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching sections:', error));
+    }
+
+    officeSelect.addEventListener('change', function() {
+        loadSections(this.value);
+    });
+
+    // Initial load
+    if (officeSelect.value) {
+        const initialSelectedSection = sectionSelect.getAttribute('data-selected-section');
+        loadSections(officeSelect.value, initialSelectedSection);
+    }
+
     document.getElementById('btnSaveDraft').addEventListener('click', () => {
         document.getElementById('action_type').value = 'save';
         document.getElementById('indentEntryForm').submit();

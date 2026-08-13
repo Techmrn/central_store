@@ -161,3 +161,14 @@ def delete_office(db: Session, office_id: int):
         db.rollback()
         raise
 
+
+#FOR DROP DOWN IN INDENT MENU
+
+def get_all_offices_dropdown(db: Session):
+    return (
+        db.query(Office)
+        .filter(Office.is_active == True)
+        .order_by(Office.display_order, Office.name)
+        .all()
+    )
+

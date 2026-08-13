@@ -178,6 +178,20 @@ def delete_section(db: Session, section_id: int):
         raise
 
 
+# Getting Correct Dropdown for indent menu
+
+def get_all_sections_dropdown(db: Session):
+    return (
+        db.query(Section)
+        .options(joinedload(Section.office))
+        .filter(Section.is_active == True)
+        .order_by(Section.name)
+        .all()
+    )
+
+
+
+
       
 
       

@@ -8,11 +8,13 @@ Indent Register - Central Store ERP
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="mb-1 text-dark fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Physical Indent Register</h2>
+            <h2 class="mb-1 text-dark fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Physical Indent
+                Register</h2>
             <p class="text-secondary mb-0">Record, process, and track printed physical Indent documents</p>
         </div>
         <div>
-            <a href="/indents/entry" class="btn btn-primary"><i class="bi bi-file-earmark-plus me-1"></i> Record Physical Indent</a>
+            <a href="/indents/entry" class="btn btn-primary"><i class="bi bi-file-earmark-plus me-1"></i> Record
+                Physical Indent</a>
         </div>
     </div>
 
@@ -25,7 +27,8 @@ Indent Register - Central Store ERP
             <form method="GET" action="/indents" class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label small fw-bold">Search</label>
-                    <input type="text" name="search" class="form-control" placeholder="Search Indent No, Office..." value="{{ search }}">
+                    <input type="text" name="search" class="form-control" placeholder="Search Indent No, Office..."
+                        value="{{ search }}">
                 </div>
 
                 <div class="col-md-2">
@@ -33,17 +36,36 @@ Indent Register - Central Store ERP
                     <select name="financial_year_id" class="form-select">
                         <option value="">All Years</option>
                         {% for fy in financial_years %}
-                        <option value="{{ fy.id }}" {% if financial_year_id_filter == fy.id %}selected{% endif %}>{{ fy.year_name }}</option>
+                        <option value="{{ fy.id }}" {% if financial_year_id_filter==fy.id %}selected{% endif %}>{{
+                            fy.year_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label small fw-bold">Office</label>
-                    <select name="office_id" class="form-select">
+                    <select name="office_id" id="filter_office_id" class="form-select">
                         <option value="">All Offices</option>
                         {% for off in offices %}
-                        <option value="{{ off.id }}" {% if office_id_filter == off.id %}selected{% endif %}>{{ off.name }}</option>
+                        <option value="{{ off.id }}" {% if office_id_filter==off.id %}selected{% endif %}>{{ off.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Section</label>
+                    <select name="section_id" id="filter_section_id" class="form-select" data-selected-section="{{ section_id_filter or '' }}">
+                        <option value="">All Sections</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Request Source</label>
+                    <select name="request_source" class="form-select">
+                        <option value="">All Sources</option>
+                        {% for rs in request_sources %}
+                        <option value="{{ rs }}" {% if request_source_filter==rs %}selected{% endif %}>{{ rs }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -53,14 +75,16 @@ Indent Register - Central Store ERP
                     <select name="indent_status" class="form-select">
                         <option value="">All Statuses</option>
                         {% for st in indent_statuses %}
-                        <option value="{{ st }}" {% if indent_status_filter == st %}selected{% endif %}>{{ st }}</option>
+                        <option value="{{ st }}" {% if indent_status_filter==st %}selected{% endif %}>{{ st }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100 me-2"><i class="bi bi-search me-1"></i>Filter</button>
-                    <a href="/indents" class="btn btn-outline-secondary w-100"><i class="bi bi-arrow-counterclockwise"></i>Reset</a>
+                    <button type="submit" class="btn btn-primary w-100 me-2"><i
+                            class="bi bi-search me-1"></i>Filter</button>
+                    <a href="/indents" class="btn btn-outline-secondary w-100"><i
+                            class="bi bi-arrow-counterclockwise"></i>Reset</a>
                 </div>
             </form>
         </div>
@@ -86,67 +110,116 @@ Indent Register - Central Store ERP
                     </thead>
                     <tbody>
                         {% if indents %}
-                            {% for ind in indents %}
-                            <tr {% if ind.status == 'SENT_TO_STORE' or ind.status == 'PROCESSING' or ind.status == 'SUBMITTED' %}class="table-warning bg-opacity-10"{% endif %}>
-                                <td class="fw-bold text-primary">{{ ind.indent_no }}</td>
-                                <td>{{ ind.indent_date }}</td>
-                                <td>{{ ind.received_date }}</td>
-                                <td><span class="badge bg-light text-dark border">{{ ind.financial_year.year_name if ind.financial_year else 'N/A' }}</span></td>
-                                <td>{{ ind.office.name if ind.office else 'N/A' }}</td>
-                                <td>{{ ind.section.name if ind.section else '-' }}</td>
-                                <td><span class="badge bg-secondary">{{ ind.request_source.value if ind.request_source else 'PHYSICAL' }}</span></td>
-                                <td>
-                                    {% if ind.status == 'DRAFT' %}
-                                        <span class="badge bg-secondary"><i class="bi bi-bookmark me-1"></i>SAVED</span>
-                                    {% elif ind.status == 'PROCESSING' %}
-                                        <span class="badge bg-primary"><i class="bi bi-gear-fill me-1"></i>PROCESSING</span>
-                                    {% elif ind.status == 'CLOSED' %}
-                                        <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>COMPLETED</span>
-                                    {% elif ind.status == 'REJECTED' %}
-                                        <span class="badge bg-danger">REJECTED</span>
-                                    {% else %}
-                                        <span class="badge bg-info">{{ ind.status }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end">
-                                    {% if ind.status == 'CLOSED' %}
-                                        <a href="/indents/receipt/{{ ind.id }}" class="btn btn-sm btn-outline-success me-1"><i class="bi bi-receipt me-1"></i>Receipt</a>
-                                        <a href="/indents/view/{{ ind.id }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
-                                    {% else %}
-                                        <a href="/indents/view/{{ ind.id }}" class="btn btn-sm btn-primary"><i class="bi bi-pencil-square me-1"></i>Process &amp; Submit</a>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        {% for ind in indents %}
+                        <tr {% if ind.status=='SENT_TO_STORE' or ind.status=='PROCESSING' or ind.status=='SUBMITTED'
+                            %}class="table-warning bg-opacity-10" {% endif %}>
+                            <td class="fw-bold text-primary">{{ ind.indent_no }}</td>
+                            <td>{{ ind.indent_date }}</td>
+                            <td>{{ ind.received_date }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ ind.financial_year.year_name if
+                                    ind.financial_year else 'N/A' }}</span></td>
+                            <td>{{ ind.office.name if ind.office else 'N/A' }}</td>
+                            <td>{{ ind.section.name if ind.section else '-' }}</td>
+                            <td><span class="badge bg-secondary">{{ ind.request_source.value if ind.request_source else
+                                    'PHYSICAL' }}</span></td>
+                            <td>
+                                {% if ind.status == 'DRAFT' %}
+                                <span class="badge bg-secondary"><i class="bi bi-bookmark me-1"></i>SAVED</span>
+                                {% elif ind.status == 'PROCESSING' %}
+                                <span class="badge bg-primary"><i class="bi bi-gear-fill me-1"></i>PROCESSING</span>
+                                {% elif ind.status == 'CLOSED' %}
+                                <span class="badge bg-success"><i
+                                        class="bi bi-check-circle-fill me-1"></i>COMPLETED</span>
+                                {% elif ind.status == 'REJECTED' %}
+                                <span class="badge bg-danger">REJECTED</span>
+                                {% else %}
+                                <span class="badge bg-info">{{ ind.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if ind.status == 'CLOSED' %}
+                                <a href="/indents/receipt/{{ ind.id }}" class="btn btn-sm btn-outline-success me-1"><i
+                                        class="bi bi-receipt me-1"></i>Receipt</a>
+                                <a href="/indents/view/{{ ind.id }}" class="btn btn-sm btn-outline-secondary"><i
+                                        class="bi bi-eye me-1"></i>View</a>
+                                {% else %}
+                                <a href="/indents/view/{{ ind.id }}" class="btn btn-sm btn-primary"><i
+                                        class="bi bi-pencil-square me-1"></i>Process &amp; Submit</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
                         {% else %}
-                            <tr>
-                                <td colspan="9" class="text-center text-muted py-4">No indents found matching your filter criteria.</td>
-                            </tr>
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">No indents found matching your filter
+                                criteria.</td>
+                        </tr>
                         {% endif %}
                     </tbody>
                 </table>
             </div>
         </div>
-        
+
         <!-- PAGINATION -->
         {% if total_pages > 1 %}
         <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
-            <span class="text-muted small">Showing Page {{ page }} of {{ total_pages }} (Total {{ total }} Indents)</span>
+            <span class="text-muted small">Showing Page {{ page }} of {{ total_pages }} (Total {{ total }}
+                Indents)</span>
             <ul class="pagination pagination-sm mb-0">
                 <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                    <a class="page-link" href="/indents?page={{ page - 1 }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&indent_status={{ indent_status_filter }}">Previous</a>
+                    <a class="page-link"
+                        href="/indents?page={{ page - 1 }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&indent_status={{ indent_status_filter }}">Previous</a>
                 </li>
                 {% for p in range(1, total_pages + 1) %}
                 <li class="page-item {% if p == page %}active{% endif %}">
-                    <a class="page-link" href="/indents?page={{ p }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&indent_status={{ indent_status_filter }}">{{ p }}</a>
+                    <a class="page-link"
+                        href="/indents?page={{ p }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&indent_status={{ indent_status_filter }}">{{
+                        p }}</a>
                 </li>
                 {% endfor %}
                 <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                    <a class="page-link" href="/indents?page={{ page + 1 }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&indent_status={{ indent_status_filter }}">Next</a>
+                    <a class="page-link"
+                        href="/indents?page={{ page + 1 }}&search={{ search }}&financial_year_id={{ financial_year_id_filter or '' }}&office_id={{ office_id_filter or '' }}&indent_status={{ indent_status_filter }}">Next</a>
                 </li>
             </ul>
         </div>
         {% endif %}
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const officeSelect = document.getElementById('filter_office_id');
+    const sectionSelect = document.getElementById('filter_section_id');
+    
+    function loadSections(officeId, selectedSectionId = '') {
+        sectionSelect.innerHTML = '<option value="">All Sections</option>';
+        if (!officeId) return;
+
+        fetch(`/section/by-office/${officeId}`)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section.id;
+                    option.textContent = section.name;
+                    if (selectedSectionId && selectedSectionId.toString() === section.id.toString()) {
+                        option.selected = true;
+                    }
+                    sectionSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching sections:', error));
+    }
+
+    officeSelect.addEventListener('change', function() {
+        loadSections(this.value);
+    });
+
+    if (officeSelect.value) {
+        const initialSelectedSection = sectionSelect.getAttribute('data-selected-section');
+        loadSections(officeSelect.value, initialSelectedSection);
+    }
+});
+</script>
 {% endblock %}
