@@ -47,6 +47,7 @@ from app.routers.ui import opening_stock as opening_stock_ui
 from app.routers.ui import unserviceable as unserviceable_ui
 from app.routers.ui import indent as indent_ui
 from app.routers.ui import issue as issue_ui
+from app.routers.ui import stock as stock_ui
 
 
 
@@ -76,6 +77,7 @@ app.include_router(user_role.router)
 app.include_router(login_history.router)
 app.include_router(opening_stock_ui.router)
 app.include_router(unserviceable_ui.router)
+app.include_router(stock_ui.router)
 
 # REST API routers
 app.include_router(category_router)

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -9,9 +9,11 @@ from app.crud.stock import (
     get_distribution_register,
     get_ewaste_register_report,
     get_item_transaction_register,
+    get_office_stock_items,
     get_stock_balances,
     get_stock_ledger,
 )
+from app.crud.financial_year import get_current_financial_year
 from app.dependencies.permissions import require_permission
 from app.models.enums import AssetStatus
 from app.schemas.common import PaginatedResponse
@@ -209,3 +211,21 @@ def get_unserviceable_register_endpoint(
         page=page,
     )
 
+
+@router.get(
+    "/office-items/{office_id}",
+    summary="Get Items with Stock Identity for an Office (current FY)",
+)
+def get_office_items_endpoint(
+    office_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Returns items that have a stock record (OpeningStock or StockMovement)
+    for the selected office in the current financial year.
+    Used by the Physical Indent entry form to populate the item dropdown.
+    """
+    fy = get_current_financial_year(db)
+    fy_id = fy.id if fy else None
+    items = get_office_stock_items(db=db, office_id=office_id, financial_year_id=fy_id)
+    return items

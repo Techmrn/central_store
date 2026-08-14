@@ -40,7 +40,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if not u or not u.perm_codes or 'STOCK_RETURN_VIEW' in u.perm_codes %}
+            {% if not u or not u.perm_codes or 'STOCK_RETURN_VIEW' in u.perm_codes or 'RETURN_VIEW' in u.perm_codes %}
             <li class="nav-item">
                 <a class="nav-link text-white" href="/stock-returns">
                     <i class="bi bi-arrow-counterclockwise me-2"></i>
@@ -48,7 +48,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if not u or not u.perm_codes or 'STOCK_TRANSFER_VIEW' in u.perm_codes %}
+            {% if not u or not u.perm_codes or 'STOCK_TRANSFER_VIEW' in u.perm_codes or 'TRANSFER_VIEW' in u.perm_codes %}
             <li class="nav-item">
                 <a class="nav-link text-white" href="/transfers">
                     <i class="bi bi-arrow-left-right me-2"></i>
@@ -56,6 +56,7 @@
                 </a>
             </li>
             {% endif %}
+
             {% if not u or not u.perm_codes or 'OUTWARD_PASS_VIEW' in u.perm_codes %}
             <li class="nav-item">
                 <a class="nav-link text-white" href="/outward-passes">
@@ -94,6 +95,54 @@
                     REGISTERS
                 </span>
             </li>
+            {% if not u or not u.perm_codes or 'STOCK_VIEW' in u.perm_codes %}
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/stock-register">
+                    <i class="bi bi-boxes me-2"></i>
+                    Current Stock
+                </a>
+            </li>
+            {% endif %}
+            {% if not u or not u.perm_codes or 'STOCK_VIEW' in u.perm_codes %}
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/item-transaction-register">
+                    <i class="bi bi-journal-arrow-down me-2"></i>
+                    Item Transaction Register
+                </a>
+            </li>
+            {% endif %}
+            {% if not u or not u.perm_codes or 'STOCK_VIEW' in u.perm_codes %}
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/distribution-register">
+                    <i class="bi bi-journal-text me-2"></i>
+                    Distribution Register
+                </a>
+            </li>
+            {% endif %}
+            {% if not u or not u.perm_codes or 'ASSET_VIEW' in u.perm_codes %}
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/asset-register">
+                    <i class="bi bi-briefcase me-2"></i>
+                    Asset Register
+                </a>
+            </li>
+            {% endif %}
+            {% if not u or not u.perm_codes or 'ASSET_VIEW' in u.perm_codes %}
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/computer-register">
+                    <i class="bi bi-pc-display me-2"></i>
+                    Computer Register
+                </a>
+            </li>
+            {% endif %}
+            {% if not u or not u.perm_codes or 'ASSET_VIEW' in u.perm_codes %}
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/ewaste-register">
+                    <i class="bi bi-trash3 me-2"></i>
+                    E-Waste Register
+                </a>
+            </li>
+            {% endif %}
             {% if not u or not u.perm_codes or 'UNSERVICEABLE_VIEW' in u.perm_codes %}
             <li class="nav-item">
                 <a class="nav-link text-white" href="/unserviceable-register">
@@ -102,14 +151,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if not u or not u.perm_codes or 'STOCK_VIEW' in u.perm_codes %}
-            <li class="nav-item">
-                <a class="nav-link text-white" href="/stock/distribution-register">
-                    <i class="bi bi-journal-text me-2"></i>
-                    Distribution Register
-                </a>
-            </li>
-            {% endif %}
+
 
             <!-- MASTERS -->
             {% if not u or not u.perm_codes or 'CATEGORY_VIEW' in u.perm_codes or 'OFFICE_VIEW' in u.perm_codes or 'ITEM_VIEW' in u.perm_codes %}

@@ -46,32 +46,60 @@ router = APIRouter(
 )
 
 
+def parse_int(val: Optional[object]) -> Optional[int]:
+    if val is None or val == "" or str(val).strip() == "":
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 def list_indents_ui(
     request: Request,
     search: str = "",
     indent_no: Optional[str] = None,
-    financial_year_id: Optional[int] = None,
-    office_id: Optional[int] = None,
-    section_id: Optional[int] = None,
-    indent_status: Optional[IndentStatus] = None,
-    request_source: Optional[RequestSource] = None,
+    financial_year_id: Optional[str] = None,
+    office_id: Optional[str] = None,
+    section_id: Optional[str] = None,
+    indent_status: Optional[str] = None,
+    request_source: Optional[str] = None,
     page: int = Query(1, ge=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_ui),
 ):
+    fy_id = parse_int(financial_year_id)
+    o_id = parse_int(office_id)
+    s_id = parse_int(section_id)
+
+    status_enum = None
+    if indent_status and indent_status.strip():
+        try:
+            status_enum = IndentStatus(indent_status.strip())
+        except ValueError:
+            status_enum = None
+
+    src_enum = None
+    if request_source and request_source.strip():
+        try:
+            src_enum = RequestSource(request_source.strip())
+        except ValueError:
+            src_enum = None
+
     indents_page = get_all_indents(
         db=db,
-        search=search,
-        indent_no=indent_no,
-        financial_year_id=financial_year_id,
-        office_id=office_id,
-        section_id=section_id,
-        status=indent_status,
-        request_source=request_source,
+        search=search or "",
+        indent_no=indent_no.strip() if indent_no else None,
+        financial_year_id=fy_id,
+        office_id=o_id,
+        section_id=s_id,
+        status=status_enum,
+        request_source=src_enum,
         page=page,
     )
+
 
     offices = get_all_offices_dropdown(db)
     sections = get_all_sections_dropdown(db)
@@ -115,8 +143,6 @@ def record_physical_indent_ui(
     current_user: User = Depends(get_current_user_ui),
 ):
     offices = get_all_offices_dropdown(db)
-    sections = get_all_sections_dropdown(db)
-    items = db.query(Item).filter(Item.is_active == True).order_by(Item.name).all()
 
     return templates.TemplateResponse(
         request=request,
@@ -127,8 +153,6 @@ def record_physical_indent_ui(
             "current_user": current_user,
             "user": current_user,
             "offices": offices,
-            "sections": sections,
-            "items": items,
             "today_date": date.today().isoformat(),
             "error": error,
             "success": success,
@@ -142,6 +166,11 @@ async def submit_physical_indent_ui(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_ui),
 ):
+    """
+    V1 Physical Indent submission — single-step, no Save/Draft.
+    Zero-issued lines are stored on the Indent but create no Issue/StockMovement.
+    An all-zero Indent is still closed successfully.
+    """
     form_data = await request.form()
 
     indent_no = str(form_data.get("indent_no", "")).strip()
@@ -150,7 +179,6 @@ async def submit_physical_indent_ui(
     section_id_raw = form_data.get("section_id")
     reference_no = str(form_data.get("reference_no", "")).strip() or None
     remarks = str(form_data.get("remarks", "")).strip() or None
-    action_type = str(form_data.get("action_type", "save")).strip().lower()
 
     if not indent_no:
         return RedirectResponse(
@@ -198,7 +226,7 @@ async def submit_physical_indent_ui(
             )
         else:
             return RedirectResponse(
-                url=f"/indents/view/{existing.id}?error=Indent+{indent_no}+already+exists+as+a+saved+pending+entry.+Continuing+with+existing+record.",
+                url=f"/indents/view/{existing.id}?error=Indent+{indent_no}+already+exists.+Redirected+to+existing+record.",
                 status_code=status.HTTP_303_SEE_OTHER,
             )
 
@@ -228,19 +256,26 @@ async def submit_physical_indent_ui(
             req_qty = 0.0
 
         try:
-            iss_qty = float(issued_qtys[i]) if i < len(issued_qtys) and issued_qtys[i] else req_qty
+            iss_qty_raw = issued_qtys[i] if i < len(issued_qtys) else ""
+            iss_qty = float(iss_qty_raw) if iss_qty_raw else 0.0
         except ValueError:
-            iss_qty = req_qty
+            iss_qty = 0.0
 
         if req_qty <= 0:
             return RedirectResponse(
-                url=f"/indents/entry?error=Requested+quantity+must+be+greater+than+0.",
+                url="/indents/entry?error=Requested+quantity+must+be+greater+than+0.",
                 status_code=status.HTTP_303_SEE_OTHER,
             )
 
-        if iss_qty < 0 or iss_qty > req_qty:
+        if iss_qty < 0:
             return RedirectResponse(
-                url=f"/indents/entry?error=Issued+quantity+({iss_qty})+must+be+between+0+and+requested+quantity+({req_qty}).",
+                url="/indents/entry?error=Issued+quantity+cannot+be+negative.",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+
+        if iss_qty > req_qty:
+            return RedirectResponse(
+                url=f"/indents/entry?error=Issued+quantity+({iss_qty})+cannot+exceed+requested+quantity+({req_qty}).",
                 status_code=status.HTTP_303_SEE_OTHER,
             )
 
@@ -255,12 +290,11 @@ async def submit_physical_indent_ui(
             )
         )
 
+        # Only create issue lines for qty > 0
         if iss_qty > 0:
-            # Check if asset item
             item_obj = db.query(Item).filter(Item.id == item_id).first()
             asset_ids = []
             if item_obj and item_obj.category and item_obj.category.type == Category_Type.ASSET:
-                # Pick available IN_STORE assets
                 available_assets = (
                     db.query(Asset)
                     .filter(
@@ -274,7 +308,7 @@ async def submit_physical_indent_ui(
                 )
                 if len(available_assets) < int(iss_qty):
                     return RedirectResponse(
-                        url=f"/indents/entry?error=Insufficient+available+IN_STORE+assets+for+{item_obj.name}.+Available:+{len(available_assets)},+Required:+{int(iss_qty)}.",
+                        url=f"/indents/entry?error=Insufficient+IN_STORE+assets+for+{item_obj.name if item_obj else item_id}.+Available:+{len(available_assets)},+Required:+{int(iss_qty)}.",
                         status_code=status.HTTP_303_SEE_OTHER,
                     )
                 asset_ids = [a.id for a in available_assets]
@@ -296,7 +330,7 @@ async def submit_physical_indent_ui(
         )
 
     try:
-        # Create Indent
+        # Create Indent (always — even all-zero)
         indent = create_indent(
             db=db,
             indent_in=IndentCreate(
@@ -314,20 +348,8 @@ async def submit_physical_indent_ui(
             user_id=current_user.id,
         )
 
-        if action_type == "save":
-            return RedirectResponse(
-                url=f"/indents?success=Physical+Indent+%23{indent_no}+saved+successfully+as+pending+entry.",
-                status_code=status.HTTP_303_SEE_OTHER,
-            )
-
-        # SINGLE-STEP SUBMIT WORKFLOW: Create Issue & Post Issue
-        if action_type == "submit":
-            if not issue_lines_create:
-                return RedirectResponse(
-                    url=f"/indents/view/{indent.id}?error=Cannot+submit+indent+with+all+0+issued+quantities.",
-                    status_code=status.HTTP_303_SEE_OTHER,
-                )
-
+        # Only create/post Issue when at least one line has qty > 0
+        if issue_lines_create:
             issue = create_issue(
                 db=db,
                 issue_in=IssueCreate(
@@ -343,13 +365,16 @@ async def submit_physical_indent_ui(
                 ),
                 user_id=current_user.id,
             )
-
+            # post_issue also closes the indent
             post_issue(db=db, issue_id=issue.id, user_id=current_user.id)
+        else:
+            # All-zero — close the indent directly without creating an Issue
+            close_indent(db=db, indent_id=indent.id, user_id=current_user.id)
 
-            return RedirectResponse(
-                url=f"/indents/receipt/{indent.id}",
-                status_code=status.HTTP_303_SEE_OTHER,
-            )
+        return RedirectResponse(
+            url=f"/indents/receipt/{indent.id}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     except ValueError as e:
         return RedirectResponse(
@@ -409,7 +434,7 @@ def view_indent_detail_ui(
         usable = get_item_usable_stock(db, item_id=line.item_id, office_id=indent.office_id)
         physical = get_item_stock(db, item_id=line.item_id, office_id=indent.office_id)
         unserviceable = get_item_unserviceable_stock(db, item_id=line.item_id, office_id=indent.office_id)
-        
+
         is_asset = False
         if line.item and line.item.category:
             is_asset = (line.item.category.type == Category_Type.ASSET)
@@ -449,12 +474,15 @@ async def process_indent_ui(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_ui),
 ):
+    """
+    V1 detail-form submit — no Save path.
+    Zero-issued lines create no stock movement; all-zero is allowed.
+    """
     indent = get_indent_by_id(db, indent_id)
     if not indent:
         raise HTTPException(status_code=404, detail="Indent not found")
 
     form_data = await request.form()
-    action_type = str(form_data.get("action_type", "save")).strip().lower()
 
     line_updates = []
     issue_lines_create = []
@@ -462,16 +490,16 @@ async def process_indent_ui(
     for line in indent.lines:
         if not line.is_active:
             continue
-        
+
         issued_key = f"issued_qty_{line.id}"
         remarks_key = f"remarks_{line.id}"
-        
+
         if issued_key in form_data:
             try:
                 issued_qty = float(form_data[issued_key])
             except ValueError:
                 issued_qty = 0.0
-            
+
             if issued_qty < 0:
                 return RedirectResponse(
                     url=f"/indents/view/{indent_id}?error=Issued+quantity+cannot+be+negative+for+{line.item.name}",
@@ -479,10 +507,10 @@ async def process_indent_ui(
                 )
             if issued_qty > line.requested_quantity:
                 return RedirectResponse(
-                    url=f"/indents/view/{indent_id}?error=Issued+quantity+cannot+exceed+requested+quantity+({line.requested_quantity})+for+{line.item.name}",
+                    url=f"/indents/view/{indent_id}?error=Issued+quantity+cannot+exceed+requested+({line.requested_quantity})+for+{line.item.name}",
                     status_code=status.HTTP_303_SEE_OTHER,
                 )
-            
+
             remarks_val = str(form_data.get(remarks_key, "")).strip()
             line_updates.append(
                 IndentLineUpdate(
@@ -519,28 +547,19 @@ async def process_indent_ui(
                 )
 
     try:
-        new_status = IndentStatus.PROCESSING if indent.status != IndentStatus.CLOSED else None
-        update_indent(
-            db=db,
-            indent_id=indent_id,
-            indent_in=IndentUpdate(lines=line_updates, status=new_status),
-            user_id=current_user.id,
-        )
-
-        if action_type == "save":
-            return RedirectResponse(
-                url=f"/indents/view/{indent_id}?success=Pending+processing+saved+successfully",
-                status_code=status.HTTP_303_SEE_OTHER,
+        # Update issued quantities on the existing indent lines
+        if line_updates:
+            update_indent(
+                db=db,
+                indent_id=indent_id,
+                indent_in=IndentUpdate(lines=line_updates, status=IndentStatus.PROCESSING),
+                user_id=current_user.id,
             )
 
-        # Single-Step SUBMIT Action for Saved Entry
-        if action_type == "submit":
-            if not issue_lines_create:
-                return RedirectResponse(
-                    url=f"/indents/view/{indent_id}?error=Cannot+submit+indent+with+0+issued+quantity.",
-                    status_code=status.HTTP_303_SEE_OTHER,
-                )
+        # Refresh to get updated state
+        indent = get_indent_by_id(db, indent_id)
 
+        if issue_lines_create:
             issue = create_issue(
                 db=db,
                 issue_in=IssueCreate(
@@ -556,13 +575,15 @@ async def process_indent_ui(
                 ),
                 user_id=current_user.id,
             )
-
             post_issue(db=db, issue_id=issue.id, user_id=current_user.id)
+        else:
+            # All-zero — close without Issue
+            close_indent(db=db, indent_id=indent_id, user_id=current_user.id)
 
-            return RedirectResponse(
-                url=f"/indents/receipt/{indent.id}",
-                status_code=status.HTTP_303_SEE_OTHER,
-            )
+        return RedirectResponse(
+            url=f"/indents/receipt/{indent.id}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     except ValueError as e:
         return RedirectResponse(

@@ -1,0 +1,167 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Item Transaction Register - Central Store ERP{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item">Registers</li>
+        <li class="breadcrumb-item active">Item Transaction Register</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-journal-arrow-down text-primary me-2"></i>Item Transaction Register</h2>
+        <p class="text-muted mb-0 small">Complete movement history for a selected item with Indent number and running balance.</p>
+    </div>
+</div>
+
+<!-- FILTERS -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white py-2">
+        <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-funnel me-2"></i>Select Item &amp; Filters</h6>
+    </div>
+    <div class="card-body py-3">
+        <form method="get" action="/item-transaction-register" class="row g-2 align-items-end" id="itemTxForm">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Office</label>
+                <select name="office_id" id="it_office_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Offices</option>
+                    {% for off in offices %}
+                    <option value="{{ off.id }}" {% if office_id_filter == off.id %}selected{% endif %}>{{ off.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Section</label>
+                <select name="section_id" id="it_section_id" class="form-select form-select-sm">
+                    <option value="">All Sections</option>
+                    {% for sec in sections %}
+                    {% if not office_id_filter or sec.office_id == office_id_filter %}
+                    <option value="{{ sec.id }}" {% if section_id_filter == sec.id %}selected{% endif %}>{{ sec.name }}</option>
+                    {% endif %}
+                    {% endfor %}
+
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Financial Year</label>
+                <select name="financial_year_id" class="form-select form-select-sm">
+                    <option value="">All Years</option>
+                    {% for fy in financial_years %}
+                    <option value="{{ fy.id }}" {% if financial_year_id_filter == fy.id %}selected{% endif %}>{{ fy.year_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Item <span class="text-danger">*</span></label>
+                <select name="item_id" id="it_item_id" class="form-select form-select-sm" required>
+                    <option value="">-- Select Item --</option>
+                    {% for item in items %}
+                    <option value="{{ item.id }}" {% if item_id_filter == item.id %}selected{% endif %}>{{ item.name }} ({{ item.code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>View</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TRANSACTION TABLE -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold">Transaction History</h6>
+        <span class="badge bg-secondary">{{ total }} movements</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Indent No</th>
+                        <th>Financial Year</th>
+                        <th>Reference</th>
+                        <th>Movement Type</th>
+                        <th class="text-end text-success">In</th>
+                        <th class="text-end text-danger">Out</th>
+                        <th>Office / Section</th>
+                        <th class="text-end text-primary">Balance</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if movements %}
+                        {% for mv in movements %}
+                        <tr>
+                            <td class="text-muted small">{{ loop.index + (page - 1) * 25 }}</td>
+                            <td class="small">{{ mv.movement_date.strftime('%d-%b-%Y %H:%M') if mv.movement_date else '-' }}</td>
+                            <td>
+                                {% if mv.indent_no %}
+                                <strong class="text-primary">{{ mv.indent_no }}</strong>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-light text-dark border small">{{ mv.financial_year_code }}</span></td>
+                            <td><code class="small">{{ mv.reference_no or '-' }}</code></td>
+                            <td>
+                                {% if mv.movement_type.value in ['RECEIPT', 'OPENING', 'RETURN', 'TRANSFER_IN', 'ADJUSTMENT_IN'] %}
+                                <span class="badge bg-success">{{ mv.movement_type.value }}</span>
+                                {% elif mv.movement_type.value in ['ISSUE', 'TRANSFER_OUT', 'ADJUSTMENT_OUT'] %}
+                                <span class="badge bg-danger">{{ mv.movement_type.value }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ mv.movement_type.value }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold text-success">{{ mv.quantity_in if mv.quantity_in else '-' }}</td>
+                            <td class="text-end fw-bold text-danger">{{ mv.quantity_out if mv.quantity_out else '-' }}</td>
+                            <td class="small">
+                                {{ mv.office_name or '-' }}
+                                {% if mv.section_name %}
+                                <br><small class="text-muted">{{ mv.section_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold text-primary">{{ mv.running_balance }}</td>
+                            <td class="small text-muted">{{ mv.remarks or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% elif item_id_filter %}
+                        <tr>
+                            <td colspan="11" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                No stock movements found for this item and selected filters.
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="11" class="text-center py-5 text-muted">
+                                <i class="bi bi-arrow-up-square fs-2 d-block mb-2"></i>
+                                Select an Item above to view its transaction history.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if total_pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center bg-light py-2">
+        <small class="text-muted">Page {{ page }} of {{ total_pages }} ({{ total }} movements)</small>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}&item_id={{ item_id_filter or '' }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&financial_year_id={{ financial_year_id_filter or '' }}">Previous</a>
+            </li>
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}&item_id={{ item_id_filter or '' }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&financial_year_id={{ financial_year_id_filter or '' }}">Next</a>
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

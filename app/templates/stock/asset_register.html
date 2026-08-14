@@ -1,0 +1,162 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Asset Register - Central Store ERP{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item">Registers</li>
+        <li class="breadcrumb-item active">Asset Register</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-laptop text-primary me-2"></i>Asset Register</h2>
+        <p class="text-muted mb-0 small">Complete record of all physical assets — with status, location, and details.</p>
+    </div>
+</div>
+
+<!-- FILTERS -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white py-2">
+        <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-funnel me-2"></i>Filters</h6>
+    </div>
+    <div class="card-body py-3">
+        <form method="get" action="/asset-register" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Office</label>
+                <select name="office_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Offices</option>
+                    {% for off in offices %}
+                    <option value="{{ off.id }}" {% if office_id_filter == off.id %}selected{% endif %}>{{ off.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Section</label>
+                <select name="section_id" class="form-select form-select-sm">
+                    <option value="">All Sections</option>
+                    {% for sec in sections %}
+                    {% if not office_id_filter or sec.office_id == office_id_filter %}
+                    <option value="{{ sec.id }}" {% if section_id_filter == sec.id %}selected{% endif %}>{{ sec.name }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Status</label>
+                <select name="asset_status" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
+                    {% for s in asset_statuses %}
+                    <option value="{{ s }}" {% if asset_status_filter == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Item</label>
+                <select name="item_id" class="form-select form-select-sm">
+                    <option value="">All Items</option>
+                    {% for item in items %}
+                    <option value="{{ item.id }}" {% if item_id_filter == item.id %}selected{% endif %}>{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Search Asset / Serial</label>
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Asset No / Serial No..." value="{{ search }}">
+            </div>
+            <div class="col-md-12 d-flex justify-content-end gap-2 mt-2">
+                <button type="submit" class="btn btn-primary btn-sm px-4"><i class="bi bi-search me-1"></i>Filter</button>
+                <a href="/asset-register" class="btn btn-outline-secondary btn-sm px-4">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABLE -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold">Assets</h6>
+        <span class="badge bg-secondary">{{ total }} records</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Asset No</th>
+                        <th>Item / Category</th>
+                        <th>Serial No</th>
+                        <th>Make / Model</th>
+                        <th>Office</th>
+                        <th>Section</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if assets %}
+                        {% for asset in assets %}
+                        <tr>
+                            <td class="text-muted small">{{ loop.index + (page - 1) * 25 }}</td>
+                            <td><code class="fw-bold">{{ asset.asset_no }}</code></td>
+                            <td>
+                                <div class="fw-bold small">{{ asset.item_name }}</div>
+                                <span class="badge bg-light text-dark border" style="font-size:0.7rem;">{{ asset.category_name }}</span>
+                            </td>
+                            <td class="small text-muted">{{ asset.serial_no or '-' }}</td>
+                            <td class="small">{{ asset.make or '' }} {{ asset.model or '' }}</td>
+                            <td class="small">{{ asset.office_name }}</td>
+                            <td class="small text-muted">{{ asset.section_name or '-' }}</td>
+                            <td>
+                                {% if asset.status.value == 'IN_STORE' %}
+                                <span class="badge bg-success">IN STORE</span>
+                                {% elif asset.status.value == 'ISSUED' %}
+                                <span class="badge bg-primary">ISSUED</span>
+                                {% elif asset.status.value == 'UNDER_REPAIR' %}
+                                <span class="badge bg-warning text-dark">UNDER REPAIR</span>
+                                {% elif asset.status.value == 'DAMAGED' %}
+                                <span class="badge bg-danger">DAMAGED</span>
+                                {% elif asset.status.value == 'CONDEMNED' %}
+                                <span class="badge bg-dark">CONDEMNED</span>
+                                {% elif asset.status.value == 'E_WASTE' %}
+                                <span class="badge bg-secondary">E-WASTE</span>
+                                {% elif asset.status.value == 'DISPOSED' %}
+                                <span class="badge bg-dark text-white">DISPOSED</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ asset.status.value }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-muted">{{ asset.remarks or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5 text-muted">
+                                <i class="bi bi-laptop fs-2 d-block mb-2"></i>
+                                No asset records found for the selected filters.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if total_pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center bg-light py-2">
+        <small class="text-muted">Page {{ page }} of {{ total_pages }} ({{ total }} records)</small>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&asset_status={{ asset_status_filter }}&item_id={{ item_id_filter or '' }}&search={{ search }}">Previous</a>
+            </li>
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&asset_status={{ asset_status_filter }}&item_id={{ item_id_filter or '' }}&search={{ search }}">Next</a>
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

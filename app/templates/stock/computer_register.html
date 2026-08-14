@@ -1,0 +1,142 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Computer Register - Central Store ERP{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item">Registers</li>
+        <li class="breadcrumb-item active">Computer Register</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-pc-display text-primary me-2"></i>Computer Register</h2>
+        <p class="text-muted mb-0 small">All computers, desktops, laptops, and IT equipment tracked as assets.</p>
+    </div>
+</div>
+
+<!-- FILTERS -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white py-2">
+        <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-funnel me-2"></i>Filters</h6>
+    </div>
+    <div class="card-body py-3">
+        <form method="get" action="/computer-register" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Office</label>
+                <select name="office_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Offices</option>
+                    {% for off in offices %}
+                    <option value="{{ off.id }}" {% if office_id_filter == off.id %}selected{% endif %}>{{ off.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Section</label>
+                <select name="section_id" class="form-select form-select-sm">
+                    <option value="">All Sections</option>
+                    {% for sec in sections %}
+                    {% if not office_id_filter or sec.office_id == office_id_filter %}
+                    <option value="{{ sec.id }}" {% if section_id_filter == sec.id %}selected{% endif %}>{{ sec.name }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Search Asset / Serial / Model</label>
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Search..." value="{{ search }}">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-search me-1"></i>Filter</button>
+                <a href="/computer-register" class="btn btn-outline-secondary btn-sm flex-fill">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABLE -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold">Computer &amp; IT Assets</h6>
+        <span class="badge bg-secondary">{{ total }} records</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Asset No</th>
+                        <th>Item / Category</th>
+                        <th>Serial No</th>
+                        <th>Make</th>
+                        <th>Model</th>
+                        <th>Office</th>
+                        <th>Section</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if assets %}
+                        {% for asset in assets %}
+                        <tr>
+                            <td class="text-muted small">{{ loop.index + (page - 1) * 25 }}</td>
+                            <td><code class="fw-bold">{{ asset.asset_no }}</code></td>
+                            <td>
+                                <div class="fw-bold small">{{ asset.item_name }}</div>
+                                <span class="badge bg-light text-dark border" style="font-size:0.7rem;">{{ asset.category_name }}</span>
+                            </td>
+                            <td class="small text-muted">{{ asset.serial_no or '-' }}</td>
+                            <td class="small">{{ asset.make or '-' }}</td>
+                            <td class="small">{{ asset.model or '-' }}</td>
+                            <td class="small">{{ asset.office_name }}</td>
+                            <td class="small text-muted">{{ asset.section_name or '-' }}</td>
+                            <td>
+                                {% if asset.status.value == 'IN_STORE' %}
+                                <span class="badge bg-success">IN STORE</span>
+                                {% elif asset.status.value == 'ISSUED' %}
+                                <span class="badge bg-primary">ISSUED</span>
+                                {% elif asset.status.value == 'UNDER_REPAIR' %}
+                                <span class="badge bg-warning text-dark">UNDER REPAIR</span>
+                                {% elif asset.status.value == 'DAMAGED' %}
+                                <span class="badge bg-danger">DAMAGED</span>
+                                {% elif asset.status.value == 'CONDEMNED' %}
+                                <span class="badge bg-dark">CONDEMNED</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ asset.status.value }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-muted">{{ asset.remarks or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="10" class="text-center py-5 text-muted">
+                                <i class="bi bi-pc-display fs-2 d-block mb-2"></i>
+                                No computer/IT assets found. Assets are added via Receipts and Indents.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if total_pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center bg-light py-2">
+        <small class="text-muted">Page {{ page }} of {{ total_pages }} ({{ total }} records)</small>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&search={{ search }}">Previous</a>
+            </li>
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&search={{ search }}">Next</a>
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

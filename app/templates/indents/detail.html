@@ -184,17 +184,11 @@ Indent {{ indent.indent_no }} - Central Store ERP
                 </div>
 
                 {% if indent.status != 'CLOSED' %}
-                <input type="hidden" name="action_type" id="detail_action_type" value="save">
                 <div class="p-3 bg-light d-flex justify-content-between align-items-center border-top">
-                    <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Save updates quantities temporarily. Submit completes the physical indent and posts stock transaction atomically.</span>
-                    <div>
-                        <button type="submit" class="btn btn-secondary me-2" onclick="document.getElementById('detail_action_type').value='save'">
-                            <i class="bi bi-bookmark me-1"></i> Save Pending Processing
-                        </button>
-                        <button type="button" class="btn btn-success btn-lg shadow-sm" id="btnSubmitDetail">
-                            <i class="bi bi-check2-circle me-1"></i> SUBMIT &amp; COMPLETE TRANSACTION
-                        </button>
-                    </div>
+                    <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Submit completes the physical indent atomically. Zero-issued lines create no stock movement.</span>
+                    <button type="button" class="btn btn-success btn-lg shadow-sm px-5" id="btnSubmitDetail">
+                        <i class="bi bi-check2-circle me-2"></i> SUBMIT
+                    </button>
                 </div>
                 {% endif %}
             </form>
@@ -265,7 +259,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const btnConfirmSubmitDetail = document.getElementById("btnConfirmSubmitDetail");
     if (btnConfirmSubmitDetail) {
         btnConfirmSubmitDetail.addEventListener("click", function() {
-            document.getElementById("detail_action_type").value = "submit";
             form.submit();
         });
     }

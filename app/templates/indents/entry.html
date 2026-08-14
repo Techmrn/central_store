@@ -37,7 +37,6 @@ Record Physical Indent - Central Store ERP
     </div>
 
     <form id="indentEntryForm" action="/indents/entry" method="POST">
-        <input type="hidden" name="action_type" id="action_type" value="save">
 
         <!-- HEADER DATA CARD -->
         <div class="card shadow-sm mb-4 border-start border-primary border-4">
@@ -60,6 +59,7 @@ Record Physical Indent - Central Store ERP
                     <div class="col-md-3">
                         <label for="office_id" class="form-label fw-bold">Issuing / Store Office <span class="text-danger">*</span></label>
                         <select class="form-select form-select-lg" id="office_id" name="office_id" required>
+                            <option value="">-- Select Office --</option>
                             {% for off in offices %}
                             <option value="{{ off.id }}" {% if user and user.office_id == off.id %}selected{% endif %}>{{ off.name }} ({{ off.code }})</option>
                             {% endfor %}
@@ -86,11 +86,19 @@ Record Physical Indent - Central Store ERP
             </div>
         </div>
 
+        <!-- STOCK ITEMS LOADING INDICATOR -->
+        <div id="stockLoadingAlert" class="alert alert-info d-none" role="alert">
+            <i class="bi bi-hourglass-split me-2"></i> Loading stock items for selected office...
+        </div>
+        <div id="noStockAlert" class="alert alert-warning d-none" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i> <strong>No stock items found</strong> for the selected office. Please enter Opening Stock first, then return to record an Indent.
+        </div>
+
         <!-- LINE ITEMS CARD -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold"><i class="bi bi-list-task text-primary me-2"></i>Physical Indent Line Items</h5>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddLine">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddLine" disabled>
                     <i class="bi bi-plus-lg me-1"></i> Add Item Line
                 </button>
             </div>
@@ -99,24 +107,27 @@ Record Physical Indent - Central Store ERP
                     <table class="table table-bordered table-hover align-middle mb-0" id="itemsTable">
                         <thead class="table-light">
                             <tr>
-                                <th style="width: 4%;">#</th>
-                                <th style="width: 32%;">Item Name &amp; Code <span class="text-danger">*</span></th>
-                                <th style="width: 10%;">Unit</th>
-                                <th style="width: 14%;" class="text-end bg-secondary bg-opacity-10">Requested Qty <span class="text-danger">*</span></th>
-                                <th style="width: 14%;">Issued Qty</th>
-                                <th style="width: 20%;">Remarks</th>
-                                <th style="width: 6%;" class="text-center">Action</th>
+                                <th style="width: 3%;">#</th>
+                                <th style="width: 22%;">Item <span class="text-danger">*</span></th>
+                                <th style="width: 7%;">Unit</th>
+                                <th style="width: 9%;" class="text-end text-info">Physical</th>
+                                <th style="width: 9%;" class="text-end text-danger">Unserv.</th>
+                                <th style="width: 9%;" class="text-end text-success">Usable</th>
+                                <th style="width: 10%;" class="text-end bg-secondary bg-opacity-10">Requested <span class="text-danger">*</span></th>
+                                <th style="width: 10%;">Issued</th>
+                                <th style="width: 15%;">Remarks</th>
+                                <th style="width: 6%;" class="text-center">Del</th>
                             </tr>
                         </thead>
                         <tbody id="linesTbody">
-                            <!-- JS dynamic rows populated here -->
+                            <!-- JS populates rows here -->
                         </tbody>
                     </table>
                 </div>
             </div>
             <div class="card-footer bg-light py-3 d-flex justify-content-between align-items-center">
-                <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Select existing items from Item Master. Issued quantity defaults to requested quantity.</span>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddLineFooter">
+                <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Select office first to load stock-bearing items. Issued qty: 0 = no stock movement, partial/full deducts stock.</span>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddLineFooter" disabled>
                     <i class="bi bi-plus-lg me-1"></i> Add Another Item
                 </button>
             </div>
@@ -125,14 +136,9 @@ Record Physical Indent - Central Store ERP
         <!-- FORM ACTION BUTTONS -->
         <div class="d-flex justify-content-between align-items-center mb-5">
             <a href="/indents" class="btn btn-outline-secondary btn-lg">Cancel</a>
-            <div>
-                <button type="button" class="btn btn-secondary btn-lg me-2" id="btnSaveDraft">
-                    <i class="bi bi-bookmark me-1"></i> Save Pending Entry
-                </button>
-                <button type="button" class="btn btn-success btn-lg shadow-sm" id="btnSubmitForm">
-                    <i class="bi bi-check2-circle me-1"></i> SUBMIT &amp; COMPLETE TRANSACTION
-                </button>
-            </div>
+            <button type="button" class="btn btn-success btn-lg shadow-sm px-5" id="btnSubmitForm">
+                <i class="bi bi-check2-circle me-2"></i> SUBMIT
+            </button>
         </div>
     </form>
 </div>
@@ -142,17 +148,20 @@ Record Physical Indent - Central Store ERP
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content shadow-lg border-0">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold" id="submitConfirmModalLabel"><i class="bi bi-exclamation-triangle-fill me-2"></i>Complete Indent Transaction?</h5>
+                <h5 class="modal-title fw-bold" id="submitConfirmModalLabel"><i class="bi bi-check-circle-fill me-2"></i>Complete Indent Transaction?</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <p class="fs-5 mb-3">You are about to submit physical Indent <strong>#<span id="confirmIndentNoDisplay"></span></strong>.</p>
-                <div class="alert alert-warning border-start border-warning border-4 mb-3">
+                <div id="allZeroNotice" class="alert alert-info border-start border-info border-4 mb-3 d-none">
+                    <i class="bi bi-info-circle me-2"></i><strong>All-Zero Issue:</strong> No items will be deducted from stock. The Indent will be recorded and closed with zero issues.
+                </div>
+                <div id="normalIssueNotice" class="alert alert-warning border-start border-warning border-4 mb-3">
                     <h6 class="fw-bold mb-2">This action will:</h6>
                     <ul class="mb-0 ps-3">
                         <li>Record the final issued quantities</li>
-                        <li>Deduct stock from Central Store inventory</li>
-                        <li>Update asset movements if asset items are included</li>
+                        <li>Deduct issued quantities from Central Store stock</li>
+                        <li>Update asset movements where asset items are included</li>
                         <li>Mark this Indent as <strong>COMPLETED / CLOSED</strong></li>
                     </ul>
                 </div>
@@ -169,29 +178,27 @@ Record Physical Indent - Central Store ERP
 </div>
 
 <script>
-const itemsData = [
-    {% for item in items %}
-    {
-        id: {{ item.id }},
-        name: "{{ item.name|replace('"', '\\"') }}",
-        code: "{{ item.code }}",
-        unit: "{{ item.unit.symbol if item.unit else '-' }}",
-        is_asset: {% if item.category and item.category.type.value == 'ASSET' %}true{% else %}false{% endif %}
-    }{% if not loop.last %},{% endif %}
-    {% endfor %}
-];
-
+// Office stock items (loaded per office via API)
+let stockItemsData = [];
 let lineCount = 0;
 
 function createRow(itemId = '', reqQty = '', issQty = '', remarks = '') {
     lineCount++;
     const rowId = `row_${lineCount}`;
-    
-    let itemOptions = '<option value="">-- Select Item from Item Master --</option>';
-    itemsData.forEach(item => {
-        const selected = (item.id.toString() === itemId.toString()) ? 'selected' : '';
-        itemOptions += `<option value="${item.id}" data-unit="${item.unit}" data-asset="${item.is_asset}" ${selected}>${item.name} (${item.code})</option>`;
-    });
+
+    let itemOptions = '<option value="">-- Select Item --</option>';
+    if (Array.isArray(stockItemsData)) {
+        stockItemsData.forEach(item => {
+            const selected = (item.id.toString() === itemId.toString()) ? 'selected' : '';
+            itemOptions += `<option value="${item.id}"
+                data-unit="${item.unit_symbol || ''}"
+                data-asset="${item.is_asset}"
+                data-physical="${item.physical_stock}"
+                data-unserviceable="${item.unserviceable_stock}"
+                data-usable="${item.usable_stock}"
+                ${selected}>${item.name} (${item.code})</option>`;
+        });
+    }
 
     const html = `
         <tr id="${rowId}">
@@ -204,25 +211,40 @@ function createRow(itemId = '', reqQty = '', issQty = '', remarks = '') {
             <td>
                 <span class="unit-display font-monospace text-muted">-</span>
             </td>
-            <td>
-                <input type="number" step="any" min="0.01" name="requested_qty[]" class="form-control text-end fw-bold req-input" placeholder="0.00" value="${reqQty}" required oninput="onReqInput(this)">
+            <td class="text-end">
+                <span class="stock-physical text-info fw-bold">-</span>
+            </td>
+            <td class="text-end">
+                <span class="stock-unserviceable text-danger fw-bold">-</span>
+            </td>
+            <td class="text-end">
+                <span class="stock-usable text-success fw-bold">-</span>
             </td>
             <td>
-                <input type="number" step="any" min="0" name="issued_qty[]" class="form-control text-primary fw-bold iss-input" placeholder="0.00" value="${issQty}">
+                <input type="number" step="any" min="0.01" name="requested_qty[]"
+                    class="form-control text-end fw-bold req-input" placeholder="0.00"
+                    value="${reqQty}" required oninput="onReqInput(this)">
             </td>
             <td>
-                <input type="text" name="line_remarks[]" class="form-control" placeholder="Optional line notes" value="${remarks}">
+                <input type="number" step="any" min="0" name="issued_qty[]"
+                    class="form-control text-primary fw-bold iss-input" placeholder="0"
+                    value="${issQty}">
+            </td>
+            <td>
+                <input type="text" name="line_remarks[]" class="form-control"
+                    placeholder="Optional" value="${remarks}">
             </td>
             <td class="text-center">
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow('${rowId}')"><i class="bi bi-trash"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow('${rowId}')">
+                    <i class="bi bi-trash"></i>
+                </button>
             </td>
         </tr>
     `;
-    
+
     document.getElementById('linesTbody').insertAdjacentHTML('beforeend', html);
     updateRowNumbers();
-    
-    // Trigger initial select update if item was preselected
+
     if (itemId) {
         const select = document.querySelector(`#${rowId} .item-select`);
         onItemChange(select);
@@ -230,8 +252,7 @@ function createRow(itemId = '', reqQty = '', issQty = '', remarks = '') {
 }
 
 function updateRowNumbers() {
-    const rows = document.querySelectorAll('#linesTbody tr');
-    rows.forEach((row, idx) => {
+    document.querySelectorAll('#linesTbody tr').forEach((row, idx) => {
         row.querySelector('.row-num').textContent = idx + 1;
     });
 }
@@ -249,98 +270,188 @@ function removeRow(rowId) {
 
 function onItemChange(selectElem) {
     const row = selectElem.closest('tr');
-    const selectedOpt = selectElem.options[selectElem.selectedIndex];
-    const unitDisplay = row.querySelector('.unit-display');
-    const reqInput = row.querySelector('.req-input');
-    const issInput = row.querySelector('.iss-input');
+    const opt = selectElem.options[selectElem.selectedIndex];
 
-    if (selectedOpt && selectedOpt.value) {
-        unitDisplay.textContent = selectedOpt.getAttribute('data-unit') || '-';
-        if (!issInput.value && reqInput.value) {
-            issInput.value = reqInput.value;
-        }
+    if (opt && opt.value) {
+        row.querySelector('.unit-display').textContent = opt.getAttribute('data-unit') || '-';
+        row.querySelector('.stock-physical').textContent = opt.getAttribute('data-physical') || '0';
+        row.querySelector('.stock-unserviceable').textContent = opt.getAttribute('data-unserviceable') || '0';
+        row.querySelector('.stock-usable').textContent = opt.getAttribute('data-usable') || '0';
+
+        // Set max on issued qty based on usable stock
+        const usable = parseFloat(opt.getAttribute('data-usable')) || 0;
+        const issInput = row.querySelector('.iss-input');
+        issInput.max = usable;
     } else {
-        unitDisplay.textContent = '-';
+        row.querySelector('.unit-display').textContent = '-';
+        row.querySelector('.stock-physical').textContent = '-';
+        row.querySelector('.stock-unserviceable').textContent = '-';
+        row.querySelector('.stock-usable').textContent = '-';
     }
 }
 
 function onReqInput(reqInput) {
-    const row = reqInput.closest('tr');
-    const issInput = row.querySelector('.iss-input');
-    if (!issInput.value || parseFloat(issInput.value) > parseFloat(reqInput.value)) {
-        issInput.value = reqInput.value;
+    // Do NOT auto-fill issued qty — let storekeeper enter it explicitly
+}
+
+function loadOfficeItems(officeId) {
+    if (!officeId) return;
+
+    const loadingAlert = document.getElementById('stockLoadingAlert');
+    const noStockAlert = document.getElementById('noStockAlert');
+    const btnAdd = document.getElementById('btnAddLine');
+    const btnAddFoot = document.getElementById('btnAddLineFooter');
+    const linesTb = document.getElementById('linesTbody');
+
+    if (loadingAlert) loadingAlert.classList.remove('d-none');
+    if (noStockAlert) noStockAlert.classList.add('d-none');
+    if (btnAdd) btnAdd.disabled = true;
+    if (btnAddFoot) btnAddFoot.disabled = true;
+
+    if (linesTb) linesTb.innerHTML = '';
+    lineCount = 0;
+
+    fetch(`/stock/office-items/${officeId}`)
+        .then(r => {
+            if (!r.ok) {
+                throw new Error(`HTTP ${r.status}`);
+            }
+            return r.json();
+        })
+        .then(data => {
+            if (loadingAlert) loadingAlert.classList.add('d-none');
+            if (Array.isArray(data)) {
+                stockItemsData = data;
+            } else {
+                console.error('Expected array of stock items, got:', data);
+                stockItemsData = [];
+            }
+            if (stockItemsData.length === 0) {
+                if (noStockAlert) noStockAlert.classList.remove('d-none');
+            } else {
+                if (btnAdd) btnAdd.disabled = false;
+                if (btnAddFoot) btnAddFoot.disabled = false;
+                createRow(); // add one empty row to start
+            }
+        })
+        .catch(err => {
+            if (loadingAlert) loadingAlert.classList.add('d-none');
+            console.error('Error loading office stock items:', err);
+            stockItemsData = [];
+            if (noStockAlert) noStockAlert.classList.remove('d-none');
+        });
+}
+
+
+function isAllZero() {
+    const issInputs = document.querySelectorAll('.iss-input');
+    for (const inp of issInputs) {
+        if (parseFloat(inp.value) > 0) return false;
     }
+    return true;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('btnAddLine').addEventListener('click', () => createRow());
-    document.getElementById('btnAddLineFooter').addEventListener('click', () => createRow());
+    const btnAddLine = document.getElementById('btnAddLine');
+    const btnAddLineFooter = document.getElementById('btnAddLineFooter');
+    if (btnAddLine) btnAddLine.addEventListener('click', () => createRow());
+    if (btnAddLineFooter) btnAddLineFooter.addEventListener('click', () => createRow());
 
-    // Initial empty row
-    createRow();
-
-    // Form actions
     const officeSelect = document.getElementById('office_id');
     const sectionSelect = document.getElementById('section_id');
 
     function loadSections(officeId, selectedSectionId = '') {
+        if (!sectionSelect) return;
         sectionSelect.innerHTML = '<option value="">Select Section</option>';
         if (!officeId) return;
-
         fetch(`/section/by-office/${officeId}`)
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                data.forEach(section => {
-                    const option = document.createElement('option');
-                    option.value = section.id;
-                    option.textContent = section.name;
-                    if (selectedSectionId && selectedSectionId.toString() === section.id.toString()) {
-                        option.selected = true;
-                    }
-                    sectionSelect.appendChild(option);
-                });
+                if (Array.isArray(data)) {
+                    data.forEach(section => {
+                        const opt = document.createElement('option');
+                        opt.value = section.id;
+                        opt.textContent = section.name;
+                        if (selectedSectionId && selectedSectionId.toString() === section.id.toString()) {
+                            opt.selected = true;
+                        }
+                        sectionSelect.appendChild(opt);
+                    });
+                }
             })
-            .catch(error => console.error('Error fetching sections:', error));
+            .catch(err => console.error('Error fetching sections:', err));
     }
 
-    officeSelect.addEventListener('change', function() {
-        loadSections(this.value);
-    });
+    if (officeSelect) {
+        officeSelect.addEventListener('change', function () {
+            loadSections(this.value);
+            loadOfficeItems(this.value);
+        });
 
-    // Initial load
-    if (officeSelect.value) {
-        const initialSelectedSection = sectionSelect.getAttribute('data-selected-section');
-        loadSections(officeSelect.value, initialSelectedSection);
+        // Auto-load if office pre-selected
+        if (officeSelect.value) {
+            const initialSection = sectionSelect ? sectionSelect.getAttribute('data-selected-section') : '';
+            loadSections(officeSelect.value, initialSection);
+            loadOfficeItems(officeSelect.value);
+        }
     }
 
-    document.getElementById('btnSaveDraft').addEventListener('click', () => {
-        document.getElementById('action_type').value = 'save';
-        document.getElementById('indentEntryForm').submit();
-    });
+    // Submit button
+    const btnSubmitForm = document.getElementById('btnSubmitForm');
+    if (btnSubmitForm) {
+        btnSubmitForm.addEventListener('click', () => {
+            const indentNoInput = document.getElementById('indent_no');
+            const indentNo = indentNoInput ? indentNoInput.value.trim() : '';
+            if (!indentNo) {
+                alert('Please enter the printed Indent / Letter Number.');
+                if (indentNoInput) indentNoInput.focus();
+                return;
+            }
+            if (officeSelect && !officeSelect.value) {
+                alert('Please select an Office.');
+                officeSelect.focus();
+                return;
+            }
+            if (document.querySelectorAll('#linesTbody tr').length === 0) {
+                alert('Please add at least one item line.');
+                return;
+            }
 
-    document.getElementById('btnSubmitForm').addEventListener('click', () => {
-        const indentNo = document.getElementById('indent_no').value.trim();
-        if (!indentNo) {
-            alert('Please enter the printed Indent / Letter Number.');
-            document.getElementById('indent_no').focus();
-            return;
-        }
-        
-        const form = document.getElementById('indentEntryForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
+            const form = document.getElementById('indentEntryForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
 
-        document.getElementById('confirmIndentNoDisplay').textContent = indentNo;
-        const modal = new bootstrap.Modal(document.getElementById('submitConfirmModal'));
-        modal.show();
-    });
+            // Show confirm modal
+            const confirmDisp = document.getElementById('confirmIndentNoDisplay');
+            if (confirmDisp) confirmDisp.textContent = indentNo;
 
-    document.getElementById('btnConfirmSubmit').addEventListener('click', () => {
-        document.getElementById('action_type').value = 'submit';
-        document.getElementById('indentEntryForm').submit();
-    });
+            const allZeroNotice = document.getElementById('allZeroNotice');
+            const normalIssueNotice = document.getElementById('normalIssueNotice');
+
+            if (isAllZero()) {
+                if (allZeroNotice) allZeroNotice.classList.remove('d-none');
+                if (normalIssueNotice) normalIssueNotice.classList.add('d-none');
+            } else {
+                if (allZeroNotice) allZeroNotice.classList.add('d-none');
+                if (normalIssueNotice) normalIssueNotice.classList.remove('d-none');
+            }
+            const modalEl = document.getElementById('submitConfirmModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        });
+    }
+
+    const btnConfirmSubmit = document.getElementById('btnConfirmSubmit');
+    if (btnConfirmSubmit) {
+        btnConfirmSubmit.addEventListener('click', () => {
+            const form = document.getElementById('indentEntryForm');
+            if (form) form.submit();
+        });
+    }
 });
 </script>
 {% endblock %}

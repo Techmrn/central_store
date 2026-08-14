@@ -116,12 +116,22 @@ PERMISSIONS = [
     # Return
     ("Return", "View", "View return records"),
     ("Return", "Create", "Create return records"),
+    ("Return", "Update", "Update return records"),
+    ("Return", "Delete", "Delete return records"),
     ("Return", "Post", "Post return records"),
+    ("Stock Return", "View", "View stock return records"),
+    ("Stock Return", "Create", "Create stock return records"),
+    ("Stock Return", "Post", "Post stock return records"),
 
     # Transfer
     ("Transfer", "View", "View transfer records"),
     ("Transfer", "Create", "Create transfer records"),
+    ("Transfer", "Update", "Update transfer records"),
+    ("Transfer", "Delete", "Delete transfer records"),
     ("Transfer", "Post", "Post transfer records"),
+    ("Stock Transfer", "View", "View stock transfer records"),
+    ("Stock Transfer", "Create", "Create stock transfer records"),
+    ("Stock Transfer", "Post", "Post stock transfer records"),
 
     # Stock
     ("Stock", "View", "View stock records and registers"),
@@ -130,11 +140,14 @@ PERMISSIONS = [
     # Outward Pass
     ("Outward Pass", "View", "View outward pass records"),
     ("Outward Pass", "Create", "Create outward pass records"),
+    ("Outward Pass", "Update", "Update outward pass records"),
+    ("Outward Pass", "Delete", "Delete outward pass records"),
 
     # Unserviceable
     ("Unserviceable", "View", "View unserviceable register records"),
     ("Unserviceable", "Create", "Create unserviceable material records"),
     ("Unserviceable", "Update", "Update unserviceable status records"),
+    ("Unserviceable", "Delete", "Delete unserviceable material records"),
 ]
 
 
@@ -182,6 +195,7 @@ def seed_permissions(db: Session) -> int:
 
 
 
+
 def seed_admin_permissions(db: Session) -> int:
     """
     Assign all available permissions to ADMIN and STOREKEEPER roles.
@@ -197,11 +211,20 @@ def seed_admin_permissions(db: Session) -> int:
         .filter(
             Role.is_active == True,
             func.upper(Role.code).in_(
-                ["ADMIN", "STOREKEEPER", "CENTRAL_STORE_KEEPER", "STORE_KEEPER"]
+                [
+                    "ADMIN",
+                    "ADMINISTRATOR",
+                    "GSK",
+                    "GENERAL_STORE_KEEPER",
+                    "STOREKEEPER",
+                    "CENTRAL_STORE_KEEPER",
+                    "STORE_KEEPER",
+                ]
             ),
         )
         .all()
     )
+
 
     if not target_roles:
         first_role = (

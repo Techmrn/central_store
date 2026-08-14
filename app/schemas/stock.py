@@ -62,12 +62,15 @@ class ItemTransactionRegisterItem(BaseModel):
     movement_id: int
     movement_date: datetime
     financial_year_code: str
+    indent_no: Optional[str] = None
     reference_type: str
     reference_no: Optional[str] = None
     movement_type: MovementType
     quantity_in: float
     quantity_out: float
     running_balance: float
+    office_name: Optional[str] = None
+    section_name: Optional[str] = None
     remarks: Optional[str] = None
 
 

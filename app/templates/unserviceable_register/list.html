@@ -1,58 +1,114 @@
 {% extends "layout/base.html" %}
 
-{% block title %}
-Unserviceable Asset / Item Register
-{% endblock %}
+{% block title %}Unserviceable Asset / Item Register - Central Store ERP{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
+<nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
-        <li class="breadcrumb-item">Inventory</li>
+        <li class="breadcrumb-item">Registers</li>
         <li class="breadcrumb-item active">Unserviceable Register</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h2 class="h3 font-weight-bold text-gray-800 mb-1">
-            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Unserviceable Asset / Item Register
-        </h2>
-        <p class="text-muted small mb-0">Track assets and store materials currently unserviceable, under repair, or condemned.</p>
+        <h2 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Unserviceable Asset / Item Register</h2>
+        <p class="text-muted mb-0 small">Track assets and store materials currently unserviceable, under repair, condemned, or E-Waste.</p>
     </div>
 </div>
 
-<div class="card shadow mb-4">
-    <div class="card-header py-3 bg-light d-flex justify-content-between align-items-center">
-        <h6 class="m-0 font-weight-bold text-primary">Filter Register</h6>
-        <form method="get" action="/unserviceable-register" class="form-inline d-flex gap-2">
-            <select name="asset_or_material" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="" {% if not asset_or_material %}selected{% endif %}>All Types (Asset & Material)</option>
-                <option value="ASSET" {% if asset_or_material == 'ASSET' %}selected{% endif %}>Asset Only</option>
-                <option value="MATERIAL" {% if asset_or_material == 'MATERIAL' %}selected{% endif %}>Material Only</option>
-            </select>
-            <select name="status_filter" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
-                <option value="UNSERVICEABLE" {% if status_filter == 'UNSERVICEABLE' %}selected{% endif %}>Unserviceable</option>
-                <option value="DAMAGED" {% if status_filter == 'DAMAGED' %}selected{% endif %}>Damaged</option>
-                <option value="UNDER_REPAIR" {% if status_filter == 'UNDER_REPAIR' %}selected{% endif %}>Under Repair</option>
-                <option value="CONDEMNED" {% if status_filter == 'CONDEMNED' %}selected{% endif %}>Condemned</option>
-                <option value="E_WASTE" {% if status_filter == 'E_WASTE' %}selected{% endif %}>E-Waste</option>
-                <option value="DISPOSED" {% if status_filter == 'DISPOSED' %}selected{% endif %}>Disposed</option>
-            </select>
+<!-- FILTERS -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white py-2">
+        <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-funnel me-2"></i>Filters</h6>
+    </div>
+    <div class="card-body py-3">
+        <form method="get" action="/unserviceable-register" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Financial Year</label>
+                <select name="financial_year_id" class="form-select form-select-sm">
+                    <option value="">All Years</option>
+                    {% for fy in financial_years %}
+                    <option value="{{ fy.id }}" {% if financial_year_id_filter == fy.id %}selected{% endif %}>{{ fy.year_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Office</label>
+                <select name="office_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Offices</option>
+                    {% for off in offices %}
+                    <option value="{{ off.id }}" {% if office_id_filter == off.id %}selected{% endif %}>{{ off.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Section</label>
+                <select name="section_id" class="form-select form-select-sm">
+                    <option value="">All Sections</option>
+                    {% for sec in sections %}
+                    {% if not office_id_filter or sec.office_id == office_id_filter %}
+                    <option value="{{ sec.id }}" {% if section_id_filter == sec.id %}selected{% endif %}>{{ sec.name }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Item</label>
+                <select name="item_id" class="form-select form-select-sm">
+                    <option value="">All Items</option>
+                    {% for item in dropdown_items %}
+                    <option value="{{ item.id }}" {% if item_id_filter == item.id %}selected{% endif %}>{{ item.name }}</option>
+                    {% endfor %}
+
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Type</label>
+                <select name="asset_or_material" class="form-select form-select-sm">
+                    <option value="" {% if not asset_or_material %}selected{% endif %}>All Types</option>
+                    <option value="ASSET" {% if asset_or_material == 'ASSET' %}selected{% endif %}>Asset Only</option>
+                    <option value="MATERIAL" {% if asset_or_material == 'MATERIAL' %}selected{% endif %}>Material Only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1">Status</label>
+                <select name="status_filter" class="form-select form-select-sm">
+                    <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                    <option value="UNSERVICEABLE" {% if status_filter == 'UNSERVICEABLE' %}selected{% endif %}>Unserviceable</option>
+                    <option value="DAMAGED" {% if status_filter == 'DAMAGED' %}selected{% endif %}>Damaged</option>
+                    <option value="UNDER_REPAIR" {% if status_filter == 'UNDER_REPAIR' %}selected{% endif %}>Under Repair</option>
+                    <option value="CONDEMNED" {% if status_filter == 'CONDEMNED' %}selected{% endif %}>Condemned</option>
+                    <option value="E_WASTE" {% if status_filter == 'E_WASTE' %}selected{% endif %}>E-Waste</option>
+                    <option value="DISPOSED" {% if status_filter == 'DISPOSED' %}selected{% endif %}>Disposed</option>
+                </select>
+            </div>
+            <div class="col-md-12 d-flex justify-content-end gap-2 mt-2">
+                <button type="submit" class="btn btn-warning btn-sm px-4"><i class="bi bi-search me-1"></i>Filter</button>
+                <a href="/unserviceable-register" class="btn btn-outline-secondary btn-sm px-4">Reset</a>
+            </div>
         </form>
+    </div>
+</div>
+
+<!-- TABLE -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold">Unserviceable Records</h6>
+        <span class="badge bg-secondary">{{ total }} records</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-bordered table-hover mb-0">
+            <table class="table table-bordered table-hover table-sm align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
                         <th>Type</th>
-                        <th>Item</th>
+                        <th>Item / Code / Category</th>
                         <th>Asset No / Ref</th>
                         <th>Serial No</th>
                         <th>Office / Section</th>
-                        <th class="text-end">Quantity</th>
+                        <th class="text-end">Qty</th>
                         <th>Status</th>
                         <th>Date Reported</th>
                         <th>Reason / Remarks</th>
@@ -70,25 +126,26 @@ Unserviceable Asset / Item Register
                                 {% endif %}
                             </td>
                             <td>
-                                <strong>{{ item.item_name }}</strong>
-                                <br><small class="text-muted">Code: {{ item.item_code }} | Cat: {{ item.category_name }}</small>
+                                <strong class="small">{{ item.item_name }}</strong>
+                                <br><code class="text-muted" style="font-size:0.7rem;">{{ item.item_code }}</code>
+                                <span class="badge bg-light text-dark border ms-1" style="font-size:0.65rem;">{{ item.category_name }}</span>
                             </td>
                             <td>
                                 {% if item.asset_no %}
-                                <code>{{ item.asset_no }}</code>
+                                <code class="fw-bold">{{ item.asset_no }}</code>
                                 {% else %}
-                                <span class="text-muted">{{ item.reference_no or '-' }}</span>
+                                <span class="text-muted small">{{ item.reference_no or '-' }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ item.serial_no or '-' }}</td>
+                            <td class="small text-muted">{{ item.serial_no or '-' }}</td>
                             <td>
-                                {{ item.office_name }}
+                                <div class="small">{{ item.office_name }}</div>
                                 {% if item.section_name %}
-                                <br><small class="text-muted">{{ item.section_name }}</small>
+                                <div class="text-muted" style="font-size:0.75rem;">{{ item.section_name }}</div>
                                 {% endif %}
                             </td>
-                            <td class="text-end">
-                                <strong>{{ item.quantity }}</strong>
+                            <td class="text-end fw-bold">
+                                {{ item.quantity }}
                                 {% if item.unit_name %}<small class="text-muted">{{ item.unit_name }}</small>{% endif %}
                             </td>
                             <td>
@@ -98,23 +155,28 @@ Unserviceable Asset / Item Register
                                 <span class="badge bg-warning text-dark">{{ item.status }}</span>
                                 {% elif item.status == 'CONDEMNED' %}
                                 <span class="badge bg-dark">{{ item.status }}</span>
+                                {% elif item.status == 'E_WASTE' %}
+                                <span class="badge bg-secondary">E-WASTE</span>
+                                {% elif item.status == 'DISPOSED' %}
+                                <span class="badge bg-dark text-white">DISPOSED</span>
                                 {% else %}
                                 <span class="badge bg-secondary">{{ item.status }}</span>
                                 {% endif %}
                             </td>
-                            <td><small>{{ item.date_reported.strftime('%d-%b-%Y') if item.date_reported else '-' }}</small></td>
-                            <td>
-                                {{ item.reason }}
+                            <td class="small">{{ item.date_reported.strftime('%d-%b-%Y') if item.date_reported else '-' }}</td>
+                            <td class="small">
+                                {{ item.reason or '-' }}
                                 {% if item.remarks %}
-                                <br><small class="text-muted">{{ item.remarks }}</small>
+                                <br><span class="text-muted">{{ item.remarks }}</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="9" class="text-center py-4 text-muted">
-                                <i class="bi bi-inbox fs-3 d-block mb-2"></i> No unserviceable asset or material records found.
+                            <td colspan="9" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                No unserviceable asset or material records found for the selected filters.
                             </td>
                         </tr>
                     {% endif %}
@@ -123,14 +185,14 @@ Unserviceable Asset / Item Register
         </div>
     </div>
     {% if pages > 1 %}
-    <div class="card-footer d-flex justify-content-between align-items-center">
-        <small class="text-muted">Showing page {{ page }} of {{ pages }} (Total {{ total }} items)</small>
+    <div class="card-footer d-flex justify-content-between align-items-center bg-light py-2">
+        <small class="text-muted">Page {{ page }} of {{ pages }} ({{ total }} records)</small>
         <ul class="pagination pagination-sm mb-0">
             <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page - 1 }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}">Previous</a>
+                <a class="page-link" href="?page={{ page - 1 }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&item_id={{ item_id_filter or '' }}&financial_year_id={{ financial_year_id_filter or '' }}">Previous</a>
             </li>
             <li class="page-item {% if page >= pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page + 1 }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}">Next</a>
+                <a class="page-link" href="?page={{ page + 1 }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&item_id={{ item_id_filter or '' }}&financial_year_id={{ financial_year_id_filter or '' }}">Next</a>
             </li>
         </ul>
     </div>
