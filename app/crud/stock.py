@@ -24,6 +24,7 @@ from app.models.opening_stock import OpeningStock
 from app.models.section import Section
 from app.models.stock_movement import StockMovement
 from app.models.unit import Unit
+from app.models.unserviceable_material import UnserviceableMaterial
 from app.schemas.stock import (
     AssetRegisterItem,
     DistributionRegisterItem,
