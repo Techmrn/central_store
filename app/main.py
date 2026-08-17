@@ -47,6 +47,9 @@ from app.routers.ui import opening_stock as opening_stock_ui
 from app.routers.ui import unserviceable as unserviceable_ui
 from app.routers.ui import indent as indent_ui
 from app.routers.ui import issue as issue_ui
+from app.routers.ui import receipt as receipt_ui
+from app.routers.ui import stock_return as stock_return_ui
+from app.routers.ui import transfer as transfer_ui
 from app.routers.ui import stock as stock_ui
 
 
@@ -63,6 +66,9 @@ app.include_router(ui_auth.router)
 app.include_router(dashboard.router) #ui router
 app.include_router(indent_ui.router) # indent UI router
 app.include_router(issue_ui.router) # issue UI router
+app.include_router(receipt_ui.router) # receipt UI router
+app.include_router(stock_return_ui.router) # stock return UI router
+app.include_router(transfer_ui.router) # transfer UI router
 app.include_router(category.router) #ui router
 app.include_router(unit.router) # adding ui of unit master
 app.include_router(office.router) # adding ui of office master

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer Voucher - {{ transfer.transfer_no }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #212529;
+            background-color: #fff;
+            font-size: 13px;
+        }
+        .print-container {
+            max-width: 860px;
+            margin: 20px auto;
+            padding: 30px;
+            border: 1px solid #dee2e6;
+            background: #fff;
+        }
+        .header-title {
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        .meta-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #6c757d;
+            font-weight: 600;
+        }
+        .meta-val {
+            font-weight: 600;
+            color: #111;
+        }
+        .table-items th {
+            background-color: #f8f9fa !important;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .signature-box {
+            border-top: 1px solid #333;
+            padding-top: 5px;
+            margin-top: 55px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: #fff;
+            }
+            .print-container {
+                border: none;
+                padding: 0;
+                margin: 0;
+                max-width: 100%;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 15mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="no-print bg-light py-2 border-bottom text-center mb-3">
+    <button onclick="window.print()" class="btn btn-primary btn-sm px-4 fw-bold me-2">
+        <i class="bi bi-printer me-1"></i> Print Voucher
+    </button>
+    <button onclick="window.close()" class="btn btn-outline-secondary btn-sm px-3">
+        Close Window
+    </button>
+</div>
+
+<div class="print-container">
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-3">
+        <div>
+            <div class="header-title text-uppercase">CENTRAL STORE ERP</div>
+            <div class="text-secondary small">Inventory &amp; Stores Department</div>
+        </div>
+        <div class="text-end">
+            <h5 class="fw-bold text-primary mb-0">INTER-STORE TRANSFER VOUCHER</h5>
+            <span class="badge {% if transfer.status.value == 'POSTED' or transfer.status == 'POSTED' %}bg-success{% else %}bg-warning text-dark{% endif %} px-2 py-1">
+                {{ transfer.status.value if transfer.status.value is defined else transfer.status }}
+            </span>
+        </div>
+    </div>
+
+    <!-- DOCUMENT METADATA -->
+    <div class="row g-3 mb-4 bg-light p-3 rounded border">
+        <div class="col-4">
+            <div class="meta-label">Transfer Voucher No</div>
+            <div class="meta-val font-monospace text-primary fs-6">{{ transfer.transfer_no }}</div>
+        </div>
+        <div class="col-4">
+            <div class="meta-label">Transfer Date</div>
+            <div class="meta-val">{{ transfer.transfer_date.strftime('%d-%b-%Y') if transfer.transfer_date else '-' }}</div>
+        </div>
+        <div class="col-4">
+            <div class="meta-label">Financial Year</div>
+            <div class="meta-val">{{ transfer.financial_year.year_name if transfer.financial_year else '-' }}</div>
+        </div>
+
+        <div class="col-6">
+            <div class="meta-label text-danger">From Store (Dispatch Location)</div>
+            <div class="meta-val fs-6 text-dark">{{ transfer.from_office.name if transfer.from_office else '-' }}</div>
+            {% if transfer.from_section %}
+                <small class="text-muted">Section: {{ transfer.from_section.name }}</small>
+            {% endif %}
+        </div>
+
+        <div class="col-6">
+            <div class="meta-label text-success">To Store (Destination Location)</div>
+            <div class="meta-val fs-6 text-dark">{{ transfer.to_office.name if transfer.to_office else '-' }}</div>
+            {% if transfer.to_section %}
+                <small class="text-muted">Section: {{ transfer.to_section.name }}</small>
+            {% endif %}
+        </div>
+
+        {% if transfer.remarks %}
+        <div class="col-12">
+            <div class="meta-label">Transfer Remarks</div>
+            <div class="meta-val">{{ transfer.remarks }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ITEMS TABLE -->
+    <table class="table table-bordered table-items mb-4 align-middle">
+        <thead>
+            <tr>
+                <th style="width: 5%;" class="text-center">#</th>
+                <th style="width: 20%;">Item Code</th>
+                <th style="width: 45%;">Item Description</th>
+                <th style="width: 15%;" class="text-center">Unit</th>
+                <th style="width: 15%;" class="text-end">Transfer Qty</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in transfer.lines %}
+            <tr>
+                <td class="text-center fw-bold text-muted">{{ loop.index }}</td>
+                <td><code>{{ line.item.code if line.item else '-' }}</code></td>
+                <td>
+                    <div class="fw-bold">{{ line.item.name if line.item else 'Item ID ' ~ line.item_id }}</div>
+                    {% if line.remarks %}
+                        <small class="text-muted fst-italic">Note: {{ line.remarks }}</small>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {{ line.unit.name if line.unit else (line.item.unit.name if line.item and line.item.unit else 'Nos') }}
+                </td>
+                <td class="text-end fw-bold">{{ "%.2f"|format(line.quantity) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot class="fw-bold bg-light">
+            <tr>
+                <td colspan="4" class="text-end">Total Transfer Quantity:</td>
+                <td class="text-end fs-6">{{ "%.2f"|format(total_quantity) }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- SIGNATURE BLOCKS -->
+    <div class="row pt-4">
+        <div class="col-4">
+            <div class="signature-box">
+                Dispatched By<br>
+                <span class="text-muted fw-normal small">Dispatching Storekeeper</span>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="signature-box">
+                Carrier / Transport<br>
+                <span class="text-muted fw-normal small">Driver / Handover Person</span>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="signature-box">
+                Received By<br>
+                <span class="text-muted fw-normal small">Receiving Storekeeper</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,319 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Goods Receipt - {{ receipt.receipt_no }} - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/receipts">Receipts</a></li>
+            <li class="breadcrumb-item active">{{ receipt.receipt_no }}</li>
+        </ol>
+    </nav>
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i><strong>Success:</strong> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <!-- HEADER TITLE & ACTIONS -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-3">
+                <h2 class="mb-0 text-dark fw-bold">{{ receipt.receipt_no }}</h2>
+                {% if receipt.status.value == 'POSTED' or receipt.status == 'POSTED' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6"><i class="bi bi-check-circle-fill me-1"></i>POSTED</span>
+                {% elif receipt.status.value == 'DRAFT' or receipt.status == 'DRAFT' %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 fs-6"><i class="bi bi-pencil me-1"></i>DRAFT</span>
+                {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-2 fs-6">{{ receipt.status }}</span>
+                {% endif %}
+            </div>
+            <p class="text-secondary mb-0 mt-1">Goods Receipt Note (GRN) / Store Inward Consignment</p>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="/receipts" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back to Register</a>
+
+            {% if receipt.status.value == 'DRAFT' or receipt.status == 'DRAFT' %}
+                <a href="/receipts/edit/{{ receipt.id }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i> Edit Draft</a>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#postConfirmModal">
+                    <i class="bi bi-check-circle me-1"></i> Post to Stock
+                </button>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteConfirmModal">
+                    <i class="bi bi-trash me-1"></i> Delete
+                </button>
+            {% else %}
+                <a href="/receipts/print/{{ receipt.id }}" class="btn btn-dark" target="_blank">
+                    <i class="bi bi-printer me-1"></i> Print GRN
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-primary border-4">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase fw-semibold">Receipt Date</div>
+                    <div class="fs-5 fw-bold text-dark">{{ receipt.receipt_date.strftime('%d-%b-%Y') if receipt.receipt_date else '-' }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-info border-4">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase fw-semibold">Total Line Items</div>
+                    <div class="fs-5 fw-bold text-dark">{{ total_items }} item(s)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-success border-4">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase fw-semibold">Total Received Qty</div>
+                    <div class="fs-5 fw-bold text-dark">{{ "%.2f"|format(total_quantity) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-dark border-4">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase fw-semibold">Total Consignment Value</div>
+                    <div class="fs-5 fw-bold text-primary">₹ {{ "{:,.2f}".format(total_value) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOCUMENT DETAILS CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-info-circle text-primary me-2"></i>Consignment Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <span class="text-muted small d-block">Store / Office</span>
+                    <strong class="text-dark">{{ receipt.office.name if receipt.office else 'N/A' }}</strong>
+                    {% if receipt.office and receipt.office.code %}
+                        <span class="badge bg-light text-muted border ms-1">{{ receipt.office.code }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4">
+                    <span class="text-muted small d-block">Receiving Section</span>
+                    {% if receipt.section %}
+                        <strong class="text-dark">{{ receipt.section.name }}</strong>
+                    {% else %}
+                        <span class="text-muted fst-italic">Main Store / General</span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4">
+                    <span class="text-muted small d-block">Financial Year</span>
+                    <strong class="text-dark">{{ receipt.financial_year.year_name if receipt.financial_year else '-' }}</strong>
+                </div>
+
+                <div class="col-md-4">
+                    <span class="text-muted small d-block">Supplier / Vendor Name</span>
+                    {% if receipt.supplier_name %}
+                        <strong class="text-dark">{{ receipt.supplier_name }}</strong>
+                    {% else %}
+                        <span class="text-muted fst-italic">None Specified</span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4">
+                    <span class="text-muted small d-block">Invoice / Challan Reference</span>
+                    {% if receipt.reference_no %}
+                        <code class="fs-6">{{ receipt.reference_no }}</code>
+                    {% else %}
+                        <span class="text-muted fst-italic">None</span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4">
+                    <span class="text-muted small d-block">Document Status</span>
+                    {% if receipt.status.value == 'POSTED' or receipt.status == 'POSTED' %}
+                        <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>POSTED (Stock Updated)</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-pencil me-1"></i>DRAFT (No Stock Effect)</span>
+                    {% endif %}
+                </div>
+
+                {% if receipt.remarks %}
+                <div class="col-12">
+                    <span class="text-muted small d-block">Remarks / Notes</span>
+                    <p class="mb-0 text-dark">{{ receipt.remarks }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- LINE ITEMS TABLE CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-ol text-primary me-2"></i>Received Items</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 5%;" class="ps-3">#</th>
+                            <th style="width: 15%;">Item Code</th>
+                            <th style="width: 30%;">Item Name &amp; Category</th>
+                            <th style="width: 10%;">Unit</th>
+                            <th style="width: 12%;" class="text-end">Received Qty</th>
+                            <th style="width: 13%;" class="text-end">Unit Rate (₹)</th>
+                            <th style="width: 15%;" class="text-end pe-3">Total Amount (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in receipt.lines %}
+                        {% set line_total = (line.quantity * (line.unit_price or 0.0)) %}
+                        <tr>
+                            <td class="ps-3 text-muted fw-bold">{{ loop.index }}</td>
+                            <td><code>{{ line.item.code if line.item else '-' }}</code></td>
+                            <td>
+                                <div class="fw-bold text-dark">
+                                    {{ line.item.name if line.item else 'Item ID: ' ~ line.item_id }}
+                                    {% if line.item and line.item.is_temporary %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1 small">Local Purchase</span>
+                                    {% endif %}
+                                </div>
+                                {% if line.item and line.item.category %}
+                                    <small class="text-muted">{{ line.item.category.name }} ({{ line.item.category.type.value }})</small>
+                                {% endif %}
+                                {% if line.remarks %}
+                                    <div class="small text-muted fst-italic mt-1"><i class="bi bi-chat-left-text me-1"></i>{{ line.remarks }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    {{ line.unit.name if line.unit else (line.item.unit.name if line.item and line.item.unit else 'Nos') }}
+                                </span>
+                            </td>
+                            <td class="text-end fw-bold text-dark fs-6">{{ "%.2f"|format(line.quantity) }}</td>
+                            <td class="text-end">
+                                {% if line.unit_price is not none %}
+                                    ₹ {{ "{:,.2f}".format(line.unit_price) }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-3 fw-bold text-primary">
+                                ₹ {{ "{:,.2f}".format(line_total) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold border-top">
+                        <tr>
+                            <td colspan="4" class="text-end ps-3">Total:</td>
+                            <td class="text-end text-dark fs-6">{{ "%.2f"|format(total_quantity) }}</td>
+                            <td class="text-end">Grand Total:</td>
+                            <td class="text-end pe-3 text-primary fs-6">₹ {{ "{:,.2f}".format(total_value) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIT TRAIL CARD -->
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-clock-history me-2"></i>Audit Trail &amp; Sign-off</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <span class="text-muted small d-block">Created By:</span>
+                    <strong class="text-dark">{{ receipt.created_by.full_name if receipt.created_by else 'System' }}</strong>
+                    <span class="text-muted small ms-2">on {{ receipt.created_at.strftime('%d-%b-%Y %I:%M %p') if receipt.created_at else '-' }}</span>
+                </div>
+                <div class="col-md-6">
+                    <span class="text-muted small d-block">Posted By:</span>
+                    {% if receipt.posted_by %}
+                        <strong class="text-success"><i class="bi bi-check-circle-fill me-1"></i>{{ receipt.posted_by.full_name }}</strong>
+                        <span class="text-muted small ms-2">on {{ receipt.posted_at.strftime('%d-%b-%Y %I:%M %p') if receipt.posted_at else '-' }}</span>
+                    {% else %}
+                        <span class="text-muted fst-italic">Not Posted Yet (Pending Store Verification)</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS FOR DRAFT ACTIONS -->
+    {% if receipt.status.value == 'DRAFT' or receipt.status == 'DRAFT' %}
+    <!-- Post Confirmation Modal -->
+    <div class="modal fade" id="postConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>Post Goods Receipt to Stock</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Are you sure you want to post Goods Receipt <strong>{{ receipt.receipt_no }}</strong> into store inventory?</p>
+                    <ul class="list-group list-group-flush mb-3 small">
+                        <li class="list-group-item d-flex justify-content-between"><span>Total Items:</span> <strong>{{ total_items }}</strong></li>
+                        <li class="list-group-item d-flex justify-content-between"><span>Total Quantity:</span> <strong>{{ "%.2f"|format(total_quantity) }}</strong></li>
+                        <li class="list-group-item d-flex justify-content-between"><span>Grand Total Value:</span> <strong>₹ {{ "{:,.2f}".format(total_value) }}</strong></li>
+                    </ul>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Irreversible Action:</strong> Posting will increase physical stock ledger and the receipt will become <strong>Read-Only</strong>.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST" action="/receipts/post/{{ receipt.id }}" class="d-inline">
+                        <button type="submit" class="btn btn-success fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Confirm &amp; Post Receipt</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-trash me-2"></i>Delete Draft Receipt</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Are you sure you want to delete Goods Receipt Draft <strong>{{ receipt.receipt_no }}</strong>?</p>
+                    <p class="text-muted small mb-0">This will soft-delete this draft document. This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST" action="/receipts/delete/{{ receipt.id }}" class="d-inline">
+                        <button type="submit" class="btn btn-danger fw-bold px-4"><i class="bi bi-trash me-1"></i> Delete Draft</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

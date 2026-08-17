@@ -1,0 +1,586 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+New Goods Receipt - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/receipts">Receipts</a></li>
+            <li class="breadcrumb-item active">New Goods Receipt</li>
+        </ol>
+    </nav>
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i><strong>Success:</strong> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-dark fw-bold"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>New Goods Receipt</h2>
+            <p class="text-secondary mb-0">Record incoming goods, vendor shipments, or local purchase items into Office Store inventory.</p>
+        </div>
+        <a href="/receipts" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back to Register</a>
+    </div>
+
+    <form id="receiptForm" action="/receipts/new" method="POST">
+        <input type="hidden" id="actionTypeInput" name="action_type" value="save_draft">
+        <input type="hidden" name="financial_year_id" value="{{ current_fy.id if current_fy else '' }}">
+
+        <!-- DOCUMENT HEADER DETAILS -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-card-heading text-primary me-2"></i>Receipt Header Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Receipt Number</label>
+                        <input type="text" class="form-control bg-light text-muted fw-bold font-monospace" value="[AUTO-GENERATED (REC-YYYY-XXXX)]" readonly tabindex="-1">
+                        <small class="text-muted">Generated sequentially on save.</small>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="receipt_date" class="form-label fw-bold small">Receipt Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="receipt_date" name="receipt_date" value="{{ today_date }}" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="office_id" class="form-label fw-bold small">Receiving Store Location <span class="text-danger">*</span></label>
+                        <select class="form-select" id="office_id" name="office_id" required>
+                            {% for off in offices %}
+                            <option value="{{ off.id }}" {% if user and user.office_id == off.id %}selected{% elif loop.first %}selected{% endif %}>{{ off.name }} ({{ off.code }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Stock is received into Main Office Store.</small>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Destination Type</label>
+                        <input type="text" class="form-control bg-light text-muted" value="Office Store (Main Stock)" readonly tabindex="-1">
+                        <small class="text-muted">Sections receive stock via Indents &amp; Issues.</small>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="supplier_name" class="form-label fw-bold small">Supplier / Vendor / Store Name <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input type="text" class="form-control" id="supplier_name" name="supplier_name" placeholder="e.g. M/s ABC Enterprises / Local Vendor">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="reference_no" class="form-label fw-bold small">Invoice / Challan / Reference No <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input type="text" class="form-control" id="reference_no" name="reference_no" placeholder="e.g. INV-2026-8899 / Cash Memo / PO Ref">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="remarks" class="form-label fw-bold small">General Remarks / Notes <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input type="text" class="form-control" id="remarks" name="remarks" placeholder="Optional notes about this consignment">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LINE ITEMS CARD -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <div>
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>Receipt Line Items</h5>
+                    <small class="text-muted">Select catalogue items or add Local Purchase / Non-Catalogue items directly.</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#localPurchaseModal">
+                        <i class="bi bi-bag-plus me-1"></i> + Local Purchase Item
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" id="btnAddLine">
+                        <i class="bi bi-plus-circle me-1"></i> Add Line
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="linesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 4%;" class="text-center">#</th>
+                                <th style="width: 38%;">Item <span class="text-danger">*</span></th>
+                                <th style="width: 10%;">Unit</th>
+                                <th style="width: 13%;">Quantity <span class="text-danger">*</span></th>
+                                <th style="width: 13%;">Unit Rate (₹)</th>
+                                <th style="width: 14%;" class="text-end">Total Amount (₹)</th>
+                                <th style="width: 8%;" class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="linesTbody">
+                            <!-- Dynamic Rows will be inserted here -->
+                        </tbody>
+                        <tfoot class="table-light fw-bold border-top">
+                            <tr>
+                                <td colspan="3" class="text-end">Summary:</td>
+                                <td id="footerTotalQty" class="text-dark">0.00</td>
+                                <td class="text-end">Grand Total:</td>
+                                <td id="footerTotalValue" class="text-end text-primary fs-6">₹ 0.00</td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddLineFoot" title="Add Row">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- FORM SUBMIT ACTIONS -->
+        <div class="card shadow-sm border-0 mb-5">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Save as Draft</strong> keeps the receipt editable without modifying stock ledger.
+                    <strong>Post to Stock</strong> immediately generates stock movements and updates current inventory.
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/receipts" class="btn btn-outline-secondary px-3">Cancel</a>
+                    <button type="button" class="btn btn-outline-primary px-4 fw-semibold" id="btnSaveDraft">
+                        <i class="bi bi-file-earmark me-1"></i> Save as Draft
+                    </button>
+                    <button type="button" class="btn btn-success px-4 fw-semibold" id="btnPostReceipt">
+                        <i class="bi bi-check-circle me-1"></i> Post to Stock
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- QUICK CREATE LOCAL PURCHASE ITEM MODAL -->
+    <div class="modal fade" id="localPurchaseModal" tabindex="-1" aria-labelledby="localPurchaseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="localPurchaseModalLabel"><i class="bi bi-bag-plus me-2"></i>Add Local Purchase / Non-Catalogue Item</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Enter details of the local purchase item. A temporary item record will be created so it can be received into stock, tracked in ledger, and issued to sections. It can later be promoted to permanent catalogue if needed.
+                    </p>
+                    <div id="quickItemAlert" class="alert alert-danger d-none py-2 small" role="alert"></div>
+                    <form id="quickItemForm" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="quick_item_name" class="form-label small fw-bold">Item Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="quick_item_name" placeholder="e.g. Special Drill Bit 12mm / Custom Cable" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="quick_item_code" class="form-label small fw-bold">Item Code <span class="text-muted fw-normal">(Optional - auto-generated)</span></label>
+                            <input type="text" class="form-control" id="quick_item_code" placeholder="e.g. LP-001 (Leave blank to auto-generate)">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="quick_category_id" class="form-label small fw-bold">Category <span class="text-danger">*</span></label>
+                            <select class="form-select" id="quick_category_id" required>
+                                <option value="">-- Select Category --</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }} ({{ cat.type.value }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="quick_unit_id" class="form-label small fw-bold">Unit of Measurement <span class="text-danger">*</span></label>
+                            <select class="form-select" id="quick_unit_id" required>
+                                <option value="">-- Select Unit --</option>
+                                {% for u in units %}
+                                <option value="{{ u.id }}">{{ u.name }} ({{ u.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="quick_specification" class="form-label small fw-bold">Specification / Make / Model <span class="text-muted fw-normal">(Optional)</span></label>
+                            <input type="text" class="form-control" id="quick_specification" placeholder="e.g. Bosch / High Speed Steel / Local market purchase">
+                        </div>
+                        <div class="col-md-12">
+                            <label for="quick_remarks" class="form-label small fw-bold">Remarks / Notes <span class="text-muted fw-normal">(Optional)</span></label>
+                            <input type="text" class="form-control" id="quick_remarks" placeholder="Optional notes for local purchase">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success fw-bold px-4" id="btnSaveQuickItem">
+                        <i class="bi bi-check-circle me-1"></i> Create &amp; Add to Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- POST CONFIRMATION MODAL -->
+    <div class="modal fade" id="confirmPostModal" tabindex="-1" aria-labelledby="confirmPostModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="confirmPostModalLabel"><i class="bi bi-shield-check me-2"></i>Confirm Stock Inward Posting</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Are you sure you want to <strong>Post this Goods Receipt</strong> directly into Office Store stock?</p>
+                    <ul class="list-group list-group-flush mb-3 small">
+                        <li class="list-group-item d-flex justify-content-between"><span>Total Items:</span> <strong id="modalItemCount">0</strong></li>
+                        <li class="list-group-item d-flex justify-content-between"><span>Total Quantity:</span> <strong id="modalTotalQty">0.00</strong></li>
+                        <li class="list-group-item d-flex justify-content-between"><span>Grand Total Value:</span> <strong id="modalTotalValue">₹ 0.00</strong></li>
+                    </ul>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Irreversible Action:</strong> Posting will increase physical stock ledger and the receipt will become <strong>Read-Only</strong>.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success fw-bold px-4" id="btnConfirmPostSubmit">
+                        <i class="bi bi-check-lg me-1"></i> Confirm &amp; Post
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let itemsData = [
+    {% for item in items %}
+    {
+        id: {{ item.id }},
+        code: {{ item.code|tojson }},
+        name: {{ item.name|tojson }},
+        category_name: {{ (item.category.name if item.category else '')|tojson }},
+        unit_name: {{ (item.unit.name if item.unit else (item.unit.code if item.unit else 'Nos'))|tojson }},
+        is_temporary: {{ 'true' if item.is_temporary else 'false' }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+let rowIdx = 0;
+
+function recalculateTotals() {
+    let totalQty = 0;
+    let totalVal = 0;
+    let count = 0;
+
+    document.querySelectorAll('#linesTbody tr').forEach((tr, i) => {
+        count++;
+        const rowNumCell = tr.querySelector('.row-num');
+        if (rowNumCell) rowNumCell.textContent = count;
+
+        const qtyInput = tr.querySelector('.qty-input');
+        const rateInput = tr.querySelector('.rate-input');
+        const lineTotalCell = tr.querySelector('.line-total');
+
+        const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+        const rate = parseFloat(rateInput ? rateInput.value : 0) || 0;
+        const lineTotal = qty * rate;
+
+        if (lineTotalCell) {
+            lineTotalCell.textContent = '₹ ' + lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        totalQty += qty;
+        totalVal += lineTotal;
+    });
+
+    const footQty = document.getElementById('footerTotalQty');
+    const footVal = document.getElementById('footerTotalValue');
+    if (footQty) footQty.textContent = totalQty.toFixed(2);
+    if (footVal) footVal.textContent = '₹ ' + totalVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const modalCnt = document.getElementById('modalItemCount');
+    const modalQty = document.getElementById('modalTotalQty');
+    const modalVal = document.getElementById('modalTotalValue');
+    if (modalCnt) modalCnt.textContent = count;
+    if (modalQty) modalQty.textContent = totalQty.toFixed(2);
+    if (modalVal) modalVal.textContent = '₹ ' + totalVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getItemSelectOptions(selectedItemId = '') {
+    let opts = '<option value="">-- Search / Select Item --</option>';
+    
+    // Group into Permanent vs Local Purchase
+    const permanentItems = itemsData.filter(i => !i.is_temporary);
+    const tempItems = itemsData.filter(i => i.is_temporary);
+
+    if (tempItems.length > 0) {
+        opts += '<optgroup label="⭐ Local Purchase / Temporary Items">';
+        tempItems.forEach(item => {
+            const isSel = selectedItemId && String(selectedItemId) === String(item.id) ? 'selected' : '';
+            opts += `<option value="${item.id}" data-unit="${item.unit_name}" ${isSel}>[LP] ${item.name} (${item.code})</option>`;
+        });
+        opts += '</optgroup>';
+    }
+
+    opts += '<optgroup label="📦 Permanent Catalogue Items">';
+    permanentItems.forEach(item => {
+        const isSel = selectedItemId && String(selectedItemId) === String(item.id) ? 'selected' : '';
+        opts += `<option value="${item.id}" data-unit="${item.unit_name}" ${isSel}>${item.name} (${item.code}) [${item.category_name}]</option>`;
+    });
+    opts += '</optgroup>';
+
+    return opts;
+}
+
+function updateAllSelectDropdowns() {
+    document.querySelectorAll('.item-select').forEach(sel => {
+        const currentVal = sel.value;
+        sel.innerHTML = getItemSelectOptions(currentVal);
+    });
+}
+
+function createLineRow(selectedItemId = '', qty = '', rate = '', remarks = '') {
+    rowIdx++;
+    const tr = document.createElement('tr');
+    tr.id = `line_row_${rowIdx}`;
+
+    tr.innerHTML = `
+        <td class="text-center row-num text-muted fw-bold">${rowIdx}</td>
+        <td>
+            <select class="form-select form-select-sm item-select" name="item_id[]" required>
+                ${getItemSelectOptions(selectedItemId)}
+            </select>
+            <input type="text" class="form-control form-control-sm mt-1 text-muted small line-remarks" name="line_remarks[]" placeholder="Line item remarks (optional)" value="${remarks}">
+        </td>
+        <td>
+            <span class="badge bg-light text-dark border px-2 py-1 unit-badge">-</span>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm qty-input fw-bold" name="quantity[]" step="any" min="0.01" placeholder="0.00" value="${qty}" required>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm rate-input" name="unit_price[]" step="any" min="0" placeholder="0.00" value="${rate}">
+        </td>
+        <td class="text-end fw-bold text-dark line-total">
+            ₹ 0.00
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm btn-remove-row" title="Remove line">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+
+    const tbody = document.getElementById('linesTbody');
+    if (tbody) tbody.appendChild(tr);
+
+    const itemSelect = tr.querySelector('.item-select');
+    const unitBadge = tr.querySelector('.unit-badge');
+    const qtyInput = tr.querySelector('.qty-input');
+    const rateInput = tr.querySelector('.rate-input');
+    const btnRemove = tr.querySelector('.btn-remove-row');
+
+    function updateUnit() {
+        const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
+        const unitName = selectedOpt ? selectedOpt.getAttribute('data-unit') : '-';
+        if (unitBadge) unitBadge.textContent = unitName || 'Nos';
+    }
+
+    if (itemSelect) {
+        itemSelect.addEventListener('change', () => {
+            updateUnit();
+            recalculateTotals();
+        });
+        if (selectedItemId) {
+            updateUnit();
+        }
+    }
+
+    if (qtyInput) qtyInput.addEventListener('input', recalculateTotals);
+    if (rateInput) rateInput.addEventListener('input', recalculateTotals);
+
+    if (btnRemove) {
+        btnRemove.addEventListener('click', () => {
+            const currentRows = document.querySelectorAll('#linesTbody tr');
+            if (currentRows.length <= 1) {
+                alert('At least one item line is required on the receipt.');
+                return;
+            }
+            tr.remove();
+            recalculateTotals();
+        });
+    }
+
+    recalculateTotals();
+    return tr;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Add first row
+    createLineRow();
+
+    // Add buttons
+    const btnAdd = document.getElementById('btnAddLine');
+    const btnAddFoot = document.getElementById('btnAddLineFoot');
+    if (btnAdd) btnAdd.addEventListener('click', () => createLineRow());
+    if (btnAddFoot) btnAddFoot.addEventListener('click', () => createLineRow());
+
+    // Quick create Local Purchase item AJAX
+    const btnSaveQuickItem = document.getElementById('btnSaveQuickItem');
+    const quickAlert = document.getElementById('quickItemAlert');
+
+    if (btnSaveQuickItem) {
+        btnSaveQuickItem.addEventListener('click', async () => {
+            const name = document.getElementById('quick_item_name').value.trim();
+            const code = document.getElementById('quick_item_code').value.trim();
+            const category_id = document.getElementById('quick_category_id').value;
+            const unit_id = document.getElementById('quick_unit_id').value;
+            const specification = document.getElementById('quick_specification').value.trim();
+            const remarks = document.getElementById('quick_remarks').value.trim();
+
+            if (!name || !category_id || !unit_id) {
+                if (quickAlert) {
+                    quickAlert.textContent = 'Please fill in Item Name, Category, and Unit.';
+                    quickAlert.classList.remove('d-none');
+                }
+                return;
+            }
+
+            btnSaveQuickItem.disabled = true;
+            btnSaveQuickItem.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating...';
+
+            try {
+                const resp = await fetch('/receipts/quick-create-item', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, code, category_id, unit_id, specification, remarks })
+                });
+
+                const data = await resp.json();
+
+                if (!resp.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to create item.');
+                }
+
+                // Add to itemsData array
+                itemsData.unshift(data.item);
+
+                // Update select dropdowns
+                updateAllSelectDropdowns();
+
+                // Find the first empty row or create new row with this item selected
+                const rows = document.querySelectorAll('#linesTbody tr');
+                let targetRow = null;
+                for (const tr of rows) {
+                    const sel = tr.querySelector('.item-select');
+                    if (sel && !sel.value) {
+                        targetRow = tr;
+                        break;
+                    }
+                }
+
+                if (targetRow) {
+                    const sel = targetRow.querySelector('.item-select');
+                    sel.value = data.item.id;
+                    const badge = targetRow.querySelector('.unit-badge');
+                    if (badge) badge.textContent = data.item.unit_name;
+                    const qtyInp = targetRow.querySelector('.qty-input');
+                    if (qtyInp) qtyInp.focus();
+                } else {
+                    const newTr = createLineRow(data.item.id);
+                    const qtyInp = newTr.querySelector('.qty-input');
+                    if (qtyInp) qtyInp.focus();
+                }
+
+                // Close modal & reset form
+                const modalEl = document.getElementById('localPurchaseModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                document.getElementById('quickItemForm').reset();
+                if (quickAlert) quickAlert.classList.add('d-none');
+
+            } catch (err) {
+                if (quickAlert) {
+                    quickAlert.textContent = err.message;
+                    quickAlert.classList.remove('d-none');
+                }
+            } finally {
+                btnSaveQuickItem.disabled = false;
+                btnSaveQuickItem.innerHTML = '<i class="bi bi-check-circle me-1"></i> Create &amp; Add to Receipt';
+            }
+        });
+    }
+
+    // Validation helper
+    function validateForm() {
+        const form = document.getElementById('receiptForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+        }
+
+        const rows = document.querySelectorAll('#linesTbody tr');
+        if (rows.length === 0) {
+            alert('Please add at least one item line.');
+            return false;
+        }
+
+        let valid = true;
+        rows.forEach(tr => {
+            const itemSelect = tr.querySelector('.item-select');
+            const qtyInput = tr.querySelector('.qty-input');
+            if (!itemSelect || !itemSelect.value) {
+                alert('Please select an item for all rows.');
+                if (itemSelect) itemSelect.focus();
+                valid = false;
+            } else if (!qtyInput || parseFloat(qtyInput.value) <= 0 || isNaN(parseFloat(qtyInput.value))) {
+                alert('Quantity must be greater than 0 for all rows.');
+                if (qtyInput) qtyInput.focus();
+                valid = false;
+            }
+        });
+
+        return valid;
+    }
+
+    // Save as Draft
+    const btnSaveDraft = document.getElementById('btnSaveDraft');
+    if (btnSaveDraft) {
+        btnSaveDraft.addEventListener('click', () => {
+            if (!validateForm()) return;
+            document.getElementById('actionTypeInput').value = 'save_draft';
+            document.getElementById('receiptForm').submit();
+        });
+    }
+
+    // Post to Stock modal trigger
+    const btnPostReceipt = document.getElementById('btnPostReceipt');
+    if (btnPostReceipt) {
+        btnPostReceipt.addEventListener('click', () => {
+            if (!validateForm()) return;
+            recalculateTotals();
+            const modalEl = document.getElementById('confirmPostModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        });
+    }
+
+    // Confirm post modal submit
+    const btnConfirmPostSubmit = document.getElementById('btnConfirmPostSubmit');
+    if (btnConfirmPostSubmit) {
+        btnConfirmPostSubmit.addEventListener('click', () => {
+            document.getElementById('actionTypeInput').value = 'post';
+            document.getElementById('receiptForm').submit();
+        });
+    }
+});
+</script>
+{% endblock %}

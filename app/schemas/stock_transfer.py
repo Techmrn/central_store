@@ -46,6 +46,11 @@ class StockTransferCreate(BaseModel):
 
 
 class StockTransferUpdate(BaseModel):
+    transfer_date: Optional[date] = None
+    from_office_id: Optional[int] = None
+    from_section_id: Optional[int] = None
+    to_office_id: Optional[int] = None
+    to_section_id: Optional[int] = None
     remarks: Optional[str] = None
     lines: Optional[list[StockTransferLineCreate]] = None
 

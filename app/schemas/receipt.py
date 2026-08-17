@@ -38,6 +38,10 @@ class ReceiptCreate(BaseModel):
 
 
 class ReceiptUpdate(BaseModel):
+    financial_year_id: Optional[int] = None
+    office_id: Optional[int] = None
+    section_id: Optional[int] = None
+    receipt_date: Optional[date] = None
     supplier_name: Optional[str] = None
     reference_no: Optional[str] = None
     remarks: Optional[str] = None

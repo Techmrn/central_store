@@ -45,6 +45,9 @@ class StockReturnCreate(BaseModel):
 
 
 class StockReturnUpdate(BaseModel):
+    return_date: Optional[date] = None
+    office_id: Optional[int] = None
+    section_id: Optional[int] = None
     reference_issue_id: Optional[int] = None
     remarks: Optional[str] = None
     lines: Optional[list[StockReturnLineCreate]] = None

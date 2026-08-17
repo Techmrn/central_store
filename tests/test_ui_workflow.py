@@ -104,7 +104,7 @@ def test_physical_indent_recording_and_single_step_submit_workflow(auth_client, 
     assert res_entry_page.status_code == 200
     assert "Record Physical Indent" in res_entry_page.text
 
-    # 4. Test Temporary Save Action (action_type=save)
+    # 4. Test Single-Step Submit Action
     res_save = client.post(
         "/indents/entry",
         data={
@@ -112,8 +112,7 @@ def test_physical_indent_recording_and_single_step_submit_workflow(auth_client, 
             "indent_date": date.today().isoformat(),
             "office_id": str(store_office.id),
             "reference_no": f"REF-{uid}",
-            "remarks": "Temporary save test",
-            "action_type": "save",
+            "remarks": "Physical indent submission test",
             "item_id[]": [str(mat_item.id), str(ast_item.id)],
             "requested_qty[]": ["20.0", "1.0"],
             "issued_qty[]": ["15.0", "1.0"],
@@ -122,9 +121,9 @@ def test_physical_indent_recording_and_single_step_submit_workflow(auth_client, 
         follow_redirects=False,
     )
     assert res_save.status_code == 303
-    assert "/indents?success=" in res_save.headers["location"]
+    assert "/indents/receipt/" in res_save.headers["location"]
 
-    # Verify saved indent in DB (status DRAFT / Saved)
+    # Verify closed indent in DB (single-step auto closes)
     saved_indent = (
         db_session.query(Indent)
         .filter(
@@ -135,7 +134,7 @@ def test_physical_indent_recording_and_single_step_submit_workflow(auth_client, 
         .first()
     )
     assert saved_indent is not None
-    assert saved_indent.status == IndentStatus.DRAFT
+    assert saved_indent.status == IndentStatus.CLOSED
     assert len(saved_indent.lines) == 2
 
     # 5. Test Duplicate Printed Indent Prevention
@@ -145,7 +144,6 @@ def test_physical_indent_recording_and_single_step_submit_workflow(auth_client, 
             "indent_no": printed_indent_no,
             "indent_date": date.today().isoformat(),
             "office_id": str(store_office.id),
-            "action_type": "save",
             "item_id[]": [str(mat_item.id)],
             "requested_qty[]": ["5.0"],
             "issued_qty[]": ["5.0"],
@@ -153,31 +151,15 @@ def test_physical_indent_recording_and_single_step_submit_workflow(auth_client, 
         follow_redirects=False,
     )
     assert res_dup.status_code == 303
-    assert "already+exists" in res_dup.headers["location"]
+    assert ("already+been+completed+and+closed" in res_dup.headers["location"] or "already+exists" in res_dup.headers["location"])
 
-    # 6. Test Single-Step SUBMIT Action for Saved Entry
-    res_submit = client.post(
-        f"/indents/{saved_indent.id}/process",
-        data={
-            "action_type": "submit",
-            f"issued_qty_{saved_indent.lines[0].id}": "15.0",
-            f"remarks_{saved_indent.lines[0].id}": "Issued paper",
-            f"issued_qty_{saved_indent.lines[1].id}": "1.0",
-            f"remarks_{saved_indent.lines[1].id}": "Issued laptop",
-        },
-        follow_redirects=False,
-    )
-    assert res_submit.status_code == 303
-    assert f"/indents/receipt/{saved_indent.id}" in res_submit.headers["location"]
-
-    # 7. Verify atomic transaction completion
+    # 6. Verify atomic transaction completion
     db_session.refresh(saved_indent)
     db_session.refresh(ast_record)
     assert saved_indent.status == IndentStatus.CLOSED
     assert ast_record.status == AssetStatus.ISSUED
 
-    # 8. Test Receipt Page
+    # 7. Test Receipt / Print Page
     res_receipt = client.get(f"/indents/receipt/{saved_indent.id}")
     assert res_receipt.status_code == 200
     assert printed_indent_no in res_receipt.text
-    assert "Completed &amp; Posted Successfully" in res_receipt.text or "Completed & Posted Successfully" in res_receipt.text

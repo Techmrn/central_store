@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, ForeignKey
+from sqlalchemy import String, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
@@ -30,6 +30,12 @@ class Item(BaseModel):
 
     unit_id: Mapped[int] = mapped_column(
         ForeignKey("units.id"),
+        nullable=False,
+    )
+
+    is_temporary: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
         nullable=False,
     )
 

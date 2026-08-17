@@ -1,0 +1,380 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Edit Stock Return - {{ return_doc.return_no }} - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/stock-returns">Stock Returns</a></li>
+            <li class="breadcrumb-item"><a href="/stock-returns/view/{{ return_doc.id }}">{{ return_doc.return_no }}</a></li>
+            <li class="breadcrumb-item active">Edit Draft</li>
+        </ol>
+    </nav>
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i><strong>Success:</strong> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-dark fw-bold"><i class="bi bi-pencil-square text-primary me-2"></i>Edit Stock Return Draft</h2>
+            <p class="text-secondary mb-0">Modify draft return details before posting into stock ledger.</p>
+        </div>
+        <a href="/stock-returns/view/{{ return_doc.id }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Cancel &amp; Back</a>
+    </div>
+
+    <form id="returnEditForm" action="/stock-returns/edit/{{ return_doc.id }}" method="POST">
+        <input type="hidden" id="actionTypeInput" name="action_type" value="save_draft">
+
+        <!-- HEADER CARD -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-card-heading text-primary me-2"></i>Return Header Information</h5>
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-1"><i class="bi bi-pencil me-1"></i>DRAFT STATUS</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Return Number</label>
+                        <input type="text" class="form-control bg-light text-primary fw-bold font-monospace" value="{{ return_doc.return_no }}" readonly tabindex="-1">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="return_date" class="form-label fw-bold small">Return Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="return_date" name="return_date" value="{{ return_doc.return_date.isoformat() if return_doc.return_date else today_date }}" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Store Location</label>
+                        <input type="text" class="form-control bg-light text-muted" value="{{ return_doc.office.name if return_doc.office else 'Central Store' }}" readonly tabindex="-1">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="section_id" class="form-label fw-bold small">Returning Section <span class="text-muted fw-normal">(Optional)</span></label>
+                        <select class="form-select" id="section_id" name="section_id">
+                            <option value="">-- Direct Store / No Section --</option>
+                            {% for sec in sections %}
+                            <option value="{{ sec.id }}" {% if return_doc.section_id == sec.id %}selected{% endif %}>{{ sec.name }} ({{ sec.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="remarks" class="form-label fw-bold small">Reason for Return / Remarks <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input type="text" class="form-control" id="remarks" name="remarks" placeholder="Optional notes" value="{{ return_doc.remarks or '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LINE ITEMS CARD -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <div>
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>Return Line Items</h5>
+                    <small class="text-muted">Specify items and quantities being returned.</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" id="btnAddLine">
+                    <i class="bi bi-plus-circle me-1"></i> Add Line
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="linesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 5%;" class="text-center">#</th>
+                                <th style="width: 45%;">Item <span class="text-danger">*</span></th>
+                                <th style="width: 15%;">Unit</th>
+                                <th style="width: 25%;">Return Quantity <span class="text-danger">*</span></th>
+                                <th style="width: 10%;" class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="linesTbody">
+                            <!-- Populated via script -->
+                        </tbody>
+                        <tfoot class="table-light fw-bold border-top">
+                            <tr>
+                                <td colspan="3" class="text-end">Total Return Quantity:</td>
+                                <td id="footerTotalQty" class="text-dark fs-6">0.00</td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddLineFoot" title="Add Row">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTIONS CARD -->
+        <div class="card shadow-sm border-0 mb-5">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Save Draft Changes</strong> updates the draft document.
+                    <strong>Post to Stock</strong> locks the document and updates current inventory.
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/stock-returns/view/{{ return_doc.id }}" class="btn btn-outline-secondary px-3">Cancel</a>
+                    <button type="button" class="btn btn-outline-primary px-4 fw-semibold" id="btnSaveDraft">
+                        <i class="bi bi-file-earmark-check me-1"></i> Save Draft Changes
+                    </button>
+                    <button type="button" class="btn btn-success px-4 fw-semibold" id="btnPostReturn">
+                        <i class="bi bi-check-circle me-1"></i> Post to Stock
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- POST CONFIRMATION MODAL -->
+    <div class="modal fade" id="confirmPostModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>Confirm Stock Return Posting</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Are you sure you want to <strong>Post Stock Return {{ return_doc.return_no }}</strong> into store stock?</p>
+                    <ul class="list-group list-group-flush mb-3 small">
+                        <li class="list-group-item d-flex justify-content-between"><span>Total Items:</span> <strong id="modalItemCount">0</strong></li>
+                        <li class="list-group-item d-flex justify-content-between"><span>Total Quantity:</span> <strong id="modalTotalQty">0.00</strong></li>
+                    </ul>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Irreversible Action:</strong> Physical stock will increase and this return document will become <strong>Read-Only</strong>.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success fw-bold px-4" id="btnConfirmPostSubmit">
+                        <i class="bi bi-check-lg me-1"></i> Confirm &amp; Post
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const itemsData = [
+    {% for item in items %}
+    {
+        id: {{ item.id }},
+        code: {{ item.code|tojson }},
+        name: {{ item.name|tojson }},
+        category_name: {{ (item.category.name if item.category else '')|tojson }},
+        unit_name: {{ (item.unit.name if item.unit else (item.unit.code if item.unit else 'Nos'))|tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const existingLines = [
+    {% for line in return_doc.lines %}
+    {
+        item_id: {{ line.item_id }},
+        quantity: {{ line.quantity }},
+        remarks: {{ (line.remarks or '')|tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+let rowIdx = 0;
+
+function recalculateTotals() {
+    let totalQty = 0;
+    let count = 0;
+
+    document.querySelectorAll('#linesTbody tr').forEach((tr) => {
+        count++;
+        const rowNumCell = tr.querySelector('.row-num');
+        if (rowNumCell) rowNumCell.textContent = count;
+
+        const qtyInput = tr.querySelector('.qty-input');
+        const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+        totalQty += qty;
+    });
+
+    const footQty = document.getElementById('footerTotalQty');
+    if (footQty) footQty.textContent = totalQty.toFixed(2);
+
+    const modalCnt = document.getElementById('modalItemCount');
+    const modalQty = document.getElementById('modalTotalQty');
+    if (modalCnt) modalCnt.textContent = count;
+    if (modalQty) modalQty.textContent = totalQty.toFixed(2);
+}
+
+function getItemSelectOptions(selectedItemId = '') {
+    let opts = '<option value="">-- Search / Select Item --</option>';
+    itemsData.forEach(item => {
+        const isSel = selectedItemId && String(selectedItemId) === String(item.id) ? 'selected' : '';
+        opts += `<option value="${item.id}" data-unit="${item.unit_name}" ${isSel}>${item.name} (${item.code})</option>`;
+    });
+    return opts;
+}
+
+function createLineRow(selectedItemId = '', qty = '', remarks = '') {
+    rowIdx++;
+    const tr = document.createElement('tr');
+    tr.id = `line_row_${rowIdx}`;
+
+    tr.innerHTML = `
+        <td class="text-center row-num text-muted fw-bold">${rowIdx}</td>
+        <td>
+            <select class="form-select form-select-sm item-select" name="item_id[]" required>
+                ${getItemSelectOptions(selectedItemId)}
+            </select>
+            <input type="text" class="form-control form-control-sm mt-1 text-muted small line-remarks" name="line_remarks[]" placeholder="Item return notes (optional)" value="${remarks || ''}">
+        </td>
+        <td>
+            <span class="badge bg-light text-dark border px-2 py-1 unit-badge">-</span>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm qty-input fw-bold" name="quantity[]" step="any" min="0.01" placeholder="0.00" value="${qty !== '' ? qty : ''}" required>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm btn-remove-row" title="Remove line">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+
+    const tbody = document.getElementById('linesTbody');
+    if (tbody) tbody.appendChild(tr);
+
+    const itemSelect = tr.querySelector('.item-select');
+    const unitBadge = tr.querySelector('.unit-badge');
+    const qtyInput = tr.querySelector('.qty-input');
+    const btnRemove = tr.querySelector('.btn-remove-row');
+
+    function updateUnit() {
+        const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
+        const unitName = selectedOpt ? selectedOpt.getAttribute('data-unit') : '-';
+        if (unitBadge) unitBadge.textContent = unitName || 'Nos';
+    }
+
+    if (itemSelect) {
+        itemSelect.addEventListener('change', () => {
+            updateUnit();
+            recalculateTotals();
+        });
+        if (selectedItemId) {
+            updateUnit();
+        }
+    }
+
+    if (qtyInput) qtyInput.addEventListener('input', recalculateTotals);
+
+    if (btnRemove) {
+        btnRemove.addEventListener('click', () => {
+            const currentRows = document.querySelectorAll('#linesTbody tr');
+            if (currentRows.length <= 1) {
+                alert('At least one item line is required on the return.');
+                return;
+            }
+            tr.remove();
+            recalculateTotals();
+        });
+    }
+
+    recalculateTotals();
+    return tr;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (existingLines.length > 0) {
+        existingLines.forEach(line => {
+            createLineRow(line.item_id, line.quantity, line.remarks);
+        });
+    } else {
+        createLineRow();
+    }
+
+    const btnAdd = document.getElementById('btnAddLine');
+    const btnAddFoot = document.getElementById('btnAddLineFoot');
+    if (btnAdd) btnAdd.addEventListener('click', () => createLineRow());
+    if (btnAddFoot) btnAddFoot.addEventListener('click', () => createLineRow());
+
+    function validateForm() {
+        const form = document.getElementById('returnEditForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+        }
+
+        const rows = document.querySelectorAll('#linesTbody tr');
+        if (rows.length === 0) {
+            alert('Please add at least one item line.');
+            return false;
+        }
+
+        let valid = true;
+        rows.forEach(tr => {
+            const itemSelect = tr.querySelector('.item-select');
+            const qtyInput = tr.querySelector('.qty-input');
+            if (!itemSelect || !itemSelect.value) {
+                alert('Please select an item for all rows.');
+                if (itemSelect) itemSelect.focus();
+                valid = false;
+            } else if (!qtyInput || parseFloat(qtyInput.value) <= 0 || isNaN(parseFloat(qtyInput.value))) {
+                alert('Quantity must be greater than 0 for all rows.');
+                if (qtyInput) qtyInput.focus();
+                valid = false;
+            }
+        });
+
+        return valid;
+    }
+
+    const btnSaveDraft = document.getElementById('btnSaveDraft');
+    if (btnSaveDraft) {
+        btnSaveDraft.addEventListener('click', () => {
+            if (!validateForm()) return;
+            document.getElementById('actionTypeInput').value = 'save_draft';
+            document.getElementById('returnEditForm').submit();
+        });
+    }
+
+    const btnPostReturn = document.getElementById('btnPostReturn');
+    if (btnPostReturn) {
+        btnPostReturn.addEventListener('click', () => {
+            if (!validateForm()) return;
+            recalculateTotals();
+            const modalEl = document.getElementById('confirmPostModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        });
+    }
+
+    const btnConfirmPostSubmit = document.getElementById('btnConfirmPostSubmit');
+    if (btnConfirmPostSubmit) {
+        btnConfirmPostSubmit.addEventListener('click', () => {
+            document.getElementById('actionTypeInput').value = 'post';
+            document.getElementById('returnEditForm').submit();
+        });
+    }
+});
+</script>
+{% endblock %}

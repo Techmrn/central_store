@@ -1,0 +1,205 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Stock Transfers Register - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item active">Stock Transfers</li>
+        </ol>
+    </nav>
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i><strong>Success:</strong> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-dark fw-bold"><i class="bi bi-arrow-left-right text-primary me-2"></i>Stock Transfers Register</h2>
+            <p class="text-secondary mb-0">Manage inter-store and inter-office stock transfers.</p>
+        </div>
+        <a href="/transfers/new" class="btn btn-primary shadow-sm"><i class="bi bi-plus-circle me-1"></i> New Stock Transfer</a>
+    </div>
+
+    <!-- FILTERS CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-funnel text-primary me-2"></i>Filter Transfers</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="/transfers" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Search</label>
+                    <input type="text" class="form-control" name="search" placeholder="Transfer No, Remarks..." value="{{ search }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Financial Year</label>
+                    <select class="form-select" name="financial_year_id">
+                        <option value="">All Financial Years</option>
+                        {% for fy in financial_years %}
+                        <option value="{{ fy.id }}" {% if financial_year_id_filter == fy.id %}selected{% endif %}>{{ fy.year_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Source Store</label>
+                    <select class="form-select" name="from_office_id">
+                        <option value="">All Source Offices</option>
+                        {% for off in offices %}
+                        <option value="{{ off.id }}" {% if from_office_id_filter == off.id %}selected{% endif %}>{{ off.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Destination Store</label>
+                    <select class="form-select" name="to_office_id">
+                        <option value="">All Target Offices</option>
+                        {% for off in offices %}
+                        <option value="{{ off.id }}" {% if to_office_id_filter == off.id %}selected{% endif %}>{{ off.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1"><i class="bi bi-search me-1"></i> Filter</button>
+                    <a href="/transfers" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i> Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TABLE CARD -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Transfer No</th>
+                            <th>Date</th>
+                            <th>Financial Year</th>
+                            <th>Source Store</th>
+                            <th>Destination Store</th>
+                            <th class="text-center">Items</th>
+                            <th class="text-end">Total Qty</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if transfers %}
+                            {% for trn in transfers %}
+                            <tr>
+                                <td class="ps-3">
+                                    <a href="/transfers/view/{{ trn.id }}" class="fw-bold text-primary text-decoration-none">
+                                        {{ trn.transfer_no }}
+                                    </a>
+                                </td>
+                                <td>{{ trn.transfer_date.strftime('%d-%b-%Y') if trn.transfer_date else '-' }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ trn.financial_year.year_name if trn.financial_year else '-' }}</span></td>
+                                <td>
+                                    <div class="fw-semibold text-dark">{{ trn.from_office.name if trn.from_office else 'N/A' }}</div>
+                                    {% if trn.from_section %}
+                                        <small class="text-muted"><i class="bi bi-diagram-3 me-1"></i>{{ trn.from_section.name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-success"><i class="bi bi-arrow-right me-1"></i>{{ trn.to_office.name if trn.to_office else 'N/A' }}</div>
+                                    {% if trn.to_section %}
+                                        <small class="text-muted"><i class="bi bi-diagram-3 me-1"></i>{{ trn.to_section.name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                        {{ trn.lines|length }} lines
+                                    </span>
+                                </td>
+                                <td class="text-end fw-bold text-dark">
+                                    {{ "%.2f"|format(trn.calculated_total_quantity) }}
+                                </td>
+                                <td class="text-center">
+                                    {% if trn.status.value == 'POSTED' or trn.status == 'POSTED' %}
+                                        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle px-2 py-1"><i class="bi bi-check-circle me-1"></i>POSTED</span>
+                                    {% elif trn.status.value == 'DRAFT' or trn.status == 'DRAFT' %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="bi bi-pencil me-1"></i>DRAFT</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary px-2 py-1">{{ trn.status.value if trn.status.value is defined else trn.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-3">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/transfers/view/{{ trn.id }}" class="btn btn-outline-secondary" title="View Document">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        {% if trn.status.value == 'DRAFT' or trn.status == 'DRAFT' %}
+                                        <a href="/transfers/edit/{{ trn.id }}" class="btn btn-outline-primary" title="Edit Draft">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-success" title="Post to Stock" data-bs-toggle="modal" data-bs-target="#postModal{{ trn.id }}">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                        {% elif trn.status.value == 'POSTED' or trn.status == 'POSTED' %}
+                                        <a href="/transfers/print/{{ trn.id }}" class="btn btn-outline-dark" title="Print Transfer Voucher" target="_blank">
+                                            <i class="bi bi-printer"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Quick Post Modal for Drafts -->
+                                    {% if trn.status.value == 'DRAFT' or trn.status == 'DRAFT' %}
+                                    <div class="modal fade text-start" id="postModal{{ trn.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-success text-white">
+                                                    <h5 class="modal-title"><i class="bi bi-check2-circle me-2"></i>Post Stock Transfer</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to post <strong>Stock Transfer {{ trn.transfer_no }}</strong>?</p>
+                                                    <p class="text-muted small mb-0">This will decrease stock at source store and increase stock at target store atomically.</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                    <form method="POST" action="/transfers/post/{{ trn.id }}">
+                                                        <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-circle me-1"></i> Confirm &amp; Post</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                                    No stock transfer records found.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

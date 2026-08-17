@@ -1,0 +1,244 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Stock Return {{ return_doc.return_no }} - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/stock-returns">Stock Returns</a></li>
+            <li class="breadcrumb-item active">{{ return_doc.return_no }}</li>
+        </ol>
+    </nav>
+
+    {% if success %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i><strong>Success:</strong> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <!-- HEADER / ACTION BAR -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="mb-0 text-dark fw-bold">{{ return_doc.return_no }}</h2>
+                {% if return_doc.status.value == 'POSTED' or return_doc.status == 'POSTED' %}
+                    <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle px-3 py-2 fs-6">
+                        <i class="bi bi-check-circle-fill me-1"></i>POSTED
+                    </span>
+                {% elif return_doc.status.value == 'DRAFT' or return_doc.status == 'DRAFT' %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 fs-6">
+                        <i class="bi bi-pencil me-1"></i>DRAFT
+                    </span>
+                {% else %}
+                    <span class="badge bg-secondary px-3 py-2 fs-6">{{ return_doc.status.value if return_doc.status.value is defined else return_doc.status }}</span>
+                {% endif %}
+            </div>
+            <p class="text-secondary mb-0 small mt-1">Recorded on {{ return_doc.return_date.strftime('%d %B %Y') if return_doc.return_date else '-' }}</p>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="/stock-returns" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Register
+            </a>
+
+            {% if return_doc.status.value == 'DRAFT' or return_doc.status == 'DRAFT' %}
+                <a href="/stock-returns/edit/{{ return_doc.id }}" class="btn btn-outline-primary">
+                    <i class="bi bi-pencil me-1"></i> Edit Draft
+                </a>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#postReturnModal">
+                    <i class="bi bi-check-circle me-1"></i> Post to Stock
+                </button>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteReturnModal">
+                    <i class="bi bi-trash me-1"></i> Delete
+                </button>
+            {% elif return_doc.status.value == 'POSTED' or return_doc.status == 'POSTED' %}
+                <a href="/stock-returns/print/{{ return_doc.id }}" class="btn btn-dark" target="_blank">
+                    <i class="bi bi-printer me-1"></i> Print Return Slip
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- DOCUMENT DETAILS CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-info-circle text-primary me-2"></i>Return Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Return Number</span>
+                    <strong class="font-monospace text-primary fs-6">{{ return_doc.return_no }}</strong>
+                </div>
+
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Return Date</span>
+                    <strong class="text-dark">{{ return_doc.return_date.strftime('%d-%b-%Y') if return_doc.return_date else '-' }}</strong>
+                </div>
+
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Financial Year</span>
+                    <strong class="text-dark">{{ return_doc.financial_year.year_name if return_doc.financial_year else '-' }}</strong>
+                </div>
+
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Receiving Store Location</span>
+                    <strong class="text-dark">{{ return_doc.office.name if return_doc.office else '-' }}</strong>
+                </div>
+
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Returning Section</span>
+                    {% if return_doc.section %}
+                        <strong class="text-dark"><i class="bi bi-diagram-3 me-1"></i>{{ return_doc.section.name }}</strong>
+                    {% else %}
+                        <span class="text-muted fst-italic">Direct Store / No Section</span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-9">
+                    <span class="text-muted small d-block">Reason / Remarks</span>
+                    <p class="mb-0 text-dark">{{ return_doc.remarks or 'None' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LINE ITEMS TABLE CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-ol text-primary me-2"></i>Returned Items</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 5%;" class="ps-3">#</th>
+                            <th style="width: 20%;">Item Code</th>
+                            <th style="width: 40%;">Item Name &amp; Category</th>
+                            <th style="width: 15%;">Unit</th>
+                            <th style="width: 20%;" class="text-end pe-3">Returned Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in return_doc.lines %}
+                        <tr>
+                            <td class="ps-3 text-muted fw-bold">{{ loop.index }}</td>
+                            <td><code>{{ line.item.code if line.item else '-' }}</code></td>
+                            <td>
+                                <div class="fw-bold text-dark">{{ line.item.name if line.item else 'Item ID: ' ~ line.item_id }}</div>
+                                {% if line.item and line.item.category %}
+                                    <small class="text-muted">{{ line.item.category.name }}</small>
+                                {% endif %}
+                                {% if line.remarks %}
+                                    <div class="small text-muted fst-italic mt-1"><i class="bi bi-chat-left-text me-1"></i>{{ line.remarks }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    {{ line.unit.name if line.unit else (line.item.unit.name if line.item and line.item.unit else 'Nos') }}
+                                </span>
+                            </td>
+                            <td class="text-end pe-3 fw-bold text-dark fs-6">{{ "%.2f"|format(line.quantity) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold border-top">
+                        <tr>
+                            <td colspan="4" class="text-end">Total Return Quantity:</td>
+                            <td class="text-end pe-3 text-primary fs-6">{{ "%.2f"|format(total_quantity) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIT TRAIL CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history text-primary me-2"></i>Audit Trail</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 small">
+                <div class="col-md-3">
+                    <span class="text-muted d-block">Created By:</span>
+                    <strong>{{ return_doc.created_by.full_name if return_doc.created_by else 'System' }}</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted d-block">Created At:</span>
+                    <strong>{{ return_doc.created_at.strftime('%d-%b-%Y %H:%M') if return_doc.created_at else '-' }}</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted d-block">Posted By:</span>
+                    <strong>{{ return_doc.posted_by.full_name if return_doc.posted_by else '-' }}</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted d-block">Posted At:</span>
+                    <strong>{{ return_doc.posted_at.strftime('%d-%b-%Y %H:%M') if return_doc.posted_at else '-' }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- POST CONFIRMATION MODAL -->
+    {% if return_doc.status.value == 'DRAFT' or return_doc.status == 'DRAFT' %}
+    <div class="modal fade" id="postReturnModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>Post Return to Stock</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Are you sure you want to post <strong>Stock Return {{ return_doc.return_no }}</strong> into physical inventory?</p>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Irreversible Action:</strong> Stock will be added to store inventory and document will become read-only.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST" action="/stock-returns/post/{{ return_doc.id }}">
+                        <button type="submit" class="btn btn-success fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Confirm &amp; Post</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div class="modal fade" id="deleteReturnModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-trash me-2"></i>Delete Draft Return</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Are you sure you want to delete draft <strong>Stock Return {{ return_doc.return_no }}</strong>? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST" action="/stock-returns/delete/{{ return_doc.id }}">
+                        <button type="submit" class="btn btn-danger fw-bold px-4"><i class="bi bi-trash me-1"></i> Delete Draft</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

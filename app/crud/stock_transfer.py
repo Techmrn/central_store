@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.pagination import get_pagination_result
 from app.models.enums import TransactionStatus
@@ -27,9 +27,15 @@ def create_transfer(
     if transfer_in.from_office_id == transfer_in.to_office_id and transfer_in.from_section_id == transfer_in.to_section_id:
         raise ValueError("Source and destination locations cannot be identical.")
 
+    if not transfer_in.lines:
+        raise ValueError("Transfer document must contain at least one line item.")
+
     if transfer_in.transfer_no:
         clean_no = transfer_in.transfer_no.strip()
-        existing = db.query(StockTransfer).filter(func.lower(StockTransfer.transfer_no) == clean_no.lower()).first()
+        existing = db.query(StockTransfer).filter(
+            func.lower(StockTransfer.transfer_no) == clean_no.lower(),
+            StockTransfer.is_active == True,
+        ).first()
         if existing:
             raise ValueError(f"Transfer number '{clean_no}' already exists.")
         transfer_no = clean_no
@@ -58,6 +64,9 @@ def create_transfer(
     )
 
     for line_in in transfer_in.lines:
+        if line_in.quantity <= 0:
+            raise ValueError("Quantity must be greater than zero for all lines.")
+
         db_line = StockTransferLine(
             item_id=line_in.item_id,
             unit_id=line_in.unit_id,
@@ -80,7 +89,23 @@ def create_transfer(
 
 
 def get_transfer_by_id(db: Session, transfer_id: int) -> Optional[StockTransfer]:
-    return db.query(StockTransfer).filter(StockTransfer.id == transfer_id, StockTransfer.is_active == True).first()
+    return (
+        db.query(StockTransfer)
+        .options(
+            joinedload(StockTransfer.from_office),
+            joinedload(StockTransfer.from_section),
+            joinedload(StockTransfer.to_office),
+            joinedload(StockTransfer.to_section),
+            joinedload(StockTransfer.financial_year),
+            joinedload(StockTransfer.created_by),
+            joinedload(StockTransfer.posted_by),
+            joinedload(StockTransfer.lines).joinedload(StockTransferLine.item),
+            joinedload(StockTransfer.lines).joinedload(StockTransferLine.unit),
+            joinedload(StockTransfer.lines).joinedload(StockTransferLine.assets).joinedload(StockTransferLineAsset.asset),
+        )
+        .filter(StockTransfer.id == transfer_id, StockTransfer.is_active == True)
+        .first()
+    )
 
 
 def get_all_transfers(
@@ -91,10 +116,22 @@ def get_all_transfers(
     from_office_id: Optional[int] = None,
     to_office_id: Optional[int] = None,
     status: Optional[TransactionStatus] = None,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
     page: int = 1,
 ):
     query = (
         db.query(StockTransfer)
+        .options(
+            joinedload(StockTransfer.from_office),
+            joinedload(StockTransfer.from_section),
+            joinedload(StockTransfer.to_office),
+            joinedload(StockTransfer.to_section),
+            joinedload(StockTransfer.financial_year),
+            joinedload(StockTransfer.lines).joinedload(StockTransferLine.item),
+            joinedload(StockTransfer.lines).joinedload(StockTransferLine.unit),
+            joinedload(StockTransfer.lines).joinedload(StockTransferLine.assets).joinedload(StockTransferLineAsset.asset),
+        )
         .join(FinancialYear, StockTransfer.financial_year_id == FinancialYear.id)
         .filter(
             StockTransfer.is_active == True,
@@ -116,6 +153,12 @@ def get_all_transfers(
 
     if status is not None:
         query = query.filter(StockTransfer.status == status)
+
+    if from_date is not None:
+        query = query.filter(StockTransfer.transfer_date >= from_date)
+
+    if to_date is not None:
+        query = query.filter(StockTransfer.transfer_date <= to_date)
 
     if search:
         clean = search.strip()
@@ -142,12 +185,42 @@ def update_transfer(
     if db_transfer.status == TransactionStatus.POSTED:
         raise ValueError("Cannot update a posted Transfer document.")
 
+    if transfer_in.transfer_date is not None:
+        db_transfer.transfer_date = transfer_in.transfer_date
+
+    if transfer_in.from_office_id is not None:
+        f_off = db.query(Office).filter(Office.id == transfer_in.from_office_id, Office.is_active == True).first()
+        if not f_off:
+            raise ValueError("Source office not found.")
+        db_transfer.from_office_id = transfer_in.from_office_id
+
+    if transfer_in.to_office_id is not None:
+        t_off = db.query(Office).filter(Office.id == transfer_in.to_office_id, Office.is_active == True).first()
+        if not t_off:
+            raise ValueError("Destination office not found.")
+        db_transfer.to_office_id = transfer_in.to_office_id
+
+    if transfer_in.from_section_id is not None:
+        db_transfer.from_section_id = transfer_in.from_section_id
+
+    if transfer_in.to_section_id is not None:
+        db_transfer.to_section_id = transfer_in.to_section_id
+
+    if db_transfer.from_office_id == db_transfer.to_office_id and db_transfer.from_section_id == db_transfer.to_section_id:
+        raise ValueError("Source and destination locations cannot be identical.")
+
     if transfer_in.remarks is not None:
         db_transfer.remarks = transfer_in.remarks.strip() if transfer_in.remarks else None
 
     if transfer_in.lines is not None:
+        if not transfer_in.lines:
+            raise ValueError("Transfer must contain at least one line item.")
+
         db_transfer.lines.clear()
         for line_in in transfer_in.lines:
+            if line_in.quantity <= 0:
+                raise ValueError("Quantity must be greater than zero.")
+
             db_line = StockTransferLine(
                 item_id=line_in.item_id,
                 unit_id=line_in.unit_id,
@@ -162,6 +235,29 @@ def update_transfer(
     try:
         db.commit()
         db.refresh(db_transfer)
+        return db_transfer
+    except Exception:
+        db.rollback()
+        raise
+
+
+def delete_transfer(
+    db: Session,
+    transfer_id: int,
+) -> Optional[StockTransfer]:
+    """
+    Soft-delete a Stock Transfer. Only DRAFT transfers can be deleted.
+    """
+    db_transfer = get_transfer_by_id(db, transfer_id)
+    if not db_transfer:
+        return None
+
+    if db_transfer.status == TransactionStatus.POSTED:
+        raise ValueError("Cannot delete a posted Transfer document.")
+
+    db_transfer.is_active = False
+    try:
+        db.commit()
         return db_transfer
     except Exception:
         db.rollback()

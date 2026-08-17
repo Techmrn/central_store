@@ -1,0 +1,257 @@
+{% extends "layout/base.html" %}
+
+{% block title %}
+Stock Transfer {{ transfer.transfer_no }} - Central Store ERP
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/transfers">Stock Transfers</a></li>
+            <li class="breadcrumb-item active">{{ transfer.transfer_no }}</li>
+        </ol>
+    </nav>
+
+    {% if success %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i><strong>Success:</strong> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <!-- HEADER / ACTION BAR -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="mb-0 text-dark fw-bold">{{ transfer.transfer_no }}</h2>
+                {% if transfer.status.value == 'POSTED' or transfer.status == 'POSTED' %}
+                    <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle px-3 py-2 fs-6">
+                        <i class="bi bi-check-circle-fill me-1"></i>POSTED
+                    </span>
+                {% elif transfer.status.value == 'DRAFT' or transfer.status == 'DRAFT' %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 fs-6">
+                        <i class="bi bi-pencil me-1"></i>DRAFT
+                    </span>
+                {% else %}
+                    <span class="badge bg-secondary px-3 py-2 fs-6">{{ transfer.status.value if transfer.status.value is defined else transfer.status }}</span>
+                {% endif %}
+            </div>
+            <p class="text-secondary mb-0 small mt-1">Recorded on {{ transfer.transfer_date.strftime('%d %B %Y') if transfer.transfer_date else '-' }}</p>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="/transfers" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Register
+            </a>
+
+            {% if transfer.status.value == 'DRAFT' or transfer.status == 'DRAFT' %}
+                <a href="/transfers/edit/{{ transfer.id }}" class="btn btn-outline-primary">
+                    <i class="bi bi-pencil me-1"></i> Edit Draft
+                </a>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#postTransferModal">
+                    <i class="bi bi-check-circle me-1"></i> Post to Stock
+                </button>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteTransferModal">
+                    <i class="bi bi-trash me-1"></i> Delete
+                </button>
+            {% elif transfer.status.value == 'POSTED' or transfer.status == 'POSTED' %}
+                <a href="/transfers/print/{{ transfer.id }}" class="btn btn-dark" target="_blank">
+                    <i class="bi bi-printer me-1"></i> Print Transfer Voucher
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- DOCUMENT DETAILS CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-info-circle text-primary me-2"></i>Transfer Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Transfer Number</span>
+                    <strong class="font-monospace text-primary fs-6">{{ transfer.transfer_no }}</strong>
+                </div>
+
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Transfer Date</span>
+                    <strong class="text-dark">{{ transfer.transfer_date.strftime('%d-%b-%Y') if transfer.transfer_date else '-' }}</strong>
+                </div>
+
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Financial Year</span>
+                    <strong class="text-dark">{{ transfer.financial_year.year_name if transfer.financial_year else '-' }}</strong>
+                </div>
+
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Status</span>
+                    <strong class="text-dark">{{ transfer.status.value if transfer.status.value is defined else transfer.status }}</strong>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded border border-danger-subtle">
+                        <span class="text-danger small fw-bold d-block text-uppercase mb-1"><i class="bi bi-box-arrow-up-right me-1"></i>Source (Dispatch Store)</span>
+                        <h6 class="mb-0 fw-bold text-dark">{{ transfer.from_office.name if transfer.from_office else '-' }}</h6>
+                        {% if transfer.from_section %}
+                            <small class="text-muted">Section: {{ transfer.from_section.name }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded border border-success-subtle">
+                        <span class="text-success small fw-bold d-block text-uppercase mb-1"><i class="bi bi-box-arrow-in-down-left me-1"></i>Destination (Receiving Store)</span>
+                        <h6 class="mb-0 fw-bold text-dark">{{ transfer.to_office.name if transfer.to_office else '-' }}</h6>
+                        {% if transfer.to_section %}
+                            <small class="text-muted">Section: {{ transfer.to_section.name }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if transfer.remarks %}
+                <div class="col-12">
+                    <span class="text-muted small d-block">Remarks / Notes</span>
+                    <p class="mb-0 text-dark">{{ transfer.remarks }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- LINE ITEMS TABLE CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-ol text-primary me-2"></i>Transferred Items</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 5%;" class="ps-3">#</th>
+                            <th style="width: 20%;">Item Code</th>
+                            <th style="width: 40%;">Item Name &amp; Category</th>
+                            <th style="width: 15%;">Unit</th>
+                            <th style="width: 20%;" class="text-end pe-3">Transfer Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in transfer.lines %}
+                        <tr>
+                            <td class="ps-3 text-muted fw-bold">{{ loop.index }}</td>
+                            <td><code>{{ line.item.code if line.item else '-' }}</code></td>
+                            <td>
+                                <div class="fw-bold text-dark">{{ line.item.name if line.item else 'Item ID: ' ~ line.item_id }}</div>
+                                {% if line.item and line.item.category %}
+                                    <small class="text-muted">{{ line.item.category.name }}</small>
+                                {% endif %}
+                                {% if line.remarks %}
+                                    <div class="small text-muted fst-italic mt-1"><i class="bi bi-chat-left-text me-1"></i>{{ line.remarks }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    {{ line.unit.name if line.unit else (line.item.unit.name if line.item and line.item.unit else 'Nos') }}
+                                </span>
+                            </td>
+                            <td class="text-end pe-3 fw-bold text-dark fs-6">{{ "%.2f"|format(line.quantity) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold border-top">
+                        <tr>
+                            <td colspan="4" class="text-end">Total Transfer Quantity:</td>
+                            <td class="text-end pe-3 text-primary fs-6">{{ "%.2f"|format(total_quantity) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIT TRAIL CARD -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history text-primary me-2"></i>Audit Trail</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 small">
+                <div class="col-md-3">
+                    <span class="text-muted d-block">Created By:</span>
+                    <strong>{{ transfer.created_by.full_name if transfer.created_by else 'System' }}</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted d-block">Created At:</span>
+                    <strong>{{ transfer.created_at.strftime('%d-%b-%Y %H:%M') if transfer.created_at else '-' }}</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted d-block">Posted By:</span>
+                    <strong>{{ transfer.posted_by.full_name if transfer.posted_by else '-' }}</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted d-block">Posted At:</span>
+                    <strong>{{ transfer.posted_at.strftime('%d-%b-%Y %H:%M') if transfer.posted_at else '-' }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- POST CONFIRMATION MODAL -->
+    {% if transfer.status.value == 'DRAFT' or transfer.status == 'DRAFT' %}
+    <div class="modal fade" id="postTransferModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>Post Transfer to Stock</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Are you sure you want to post <strong>Stock Transfer {{ transfer.transfer_no }}</strong>?</p>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Irreversible Action:</strong> Stock will be deducted from source store and credited to destination store immediately.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST" action="/transfers/post/{{ transfer.id }}">
+                        <button type="submit" class="btn btn-success fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Confirm &amp; Post</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div class="modal fade" id="deleteTransferModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-trash me-2"></i>Delete Draft Transfer</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Are you sure you want to delete draft <strong>Stock Transfer {{ transfer.transfer_no }}</strong>? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST" action="/transfers/delete/{{ transfer.id }}">
+                        <button type="submit" class="btn btn-danger fw-bold px-4"><i class="bi bi-trash me-1"></i> Delete Draft</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
