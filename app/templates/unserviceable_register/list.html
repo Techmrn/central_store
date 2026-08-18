@@ -16,7 +16,26 @@
         <h2 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Unserviceable Asset / Item Register</h2>
         <p class="text-muted mb-0 small">Track assets and store materials currently unserviceable, under repair, condemned, or E-Waste.</p>
     </div>
+    <div>
+        <a href="/unserviceable-material/new" class="btn btn-danger btn-sm px-3 shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i>New Material Entry
+        </a>
+    </div>
 </div>
+
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i>{{ success }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
 
 <!-- FILTERS -->
 <div class="card shadow-sm mb-4">
@@ -55,13 +74,12 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-bold mb-1">Item</label>
-                <select name="item_id" class="form-select form-select-sm">
-                    <option value="">All Items</option>
-                    {% for item in dropdown_items %}
-                    <option value="{{ item.id }}" {% if item_id_filter == item.id %}selected{% endif %}>{{ item.name }}</option>
+                <label class="form-label small fw-bold mb-1">Category</label>
+                <select name="category_id" class="form-select form-select-sm">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if category_id_filter == cat.id %}selected{% endif %}>{{ cat.name }}</option>
                     {% endfor %}
-
                 </select>
             </div>
             <div class="col-md-2">
@@ -79,14 +97,29 @@
                     <option value="UNSERVICEABLE" {% if status_filter == 'UNSERVICEABLE' %}selected{% endif %}>Unserviceable</option>
                     <option value="DAMAGED" {% if status_filter == 'DAMAGED' %}selected{% endif %}>Damaged</option>
                     <option value="UNDER_REPAIR" {% if status_filter == 'UNDER_REPAIR' %}selected{% endif %}>Under Repair</option>
+                    <option value="REPAIRED" {% if status_filter == 'REPAIRED' %}selected{% endif %}>Repaired</option>
                     <option value="CONDEMNED" {% if status_filter == 'CONDEMNED' %}selected{% endif %}>Condemned</option>
                     <option value="E_WASTE" {% if status_filter == 'E_WASTE' %}selected{% endif %}>E-Waste</option>
                     <option value="DISPOSED" {% if status_filter == 'DISPOSED' %}selected{% endif %}>Disposed</option>
                 </select>
             </div>
-            <div class="col-md-12 d-flex justify-content-end gap-2 mt-2">
-                <button type="submit" class="btn btn-warning btn-sm px-4"><i class="bi bi-search me-1"></i>Filter</button>
-                <a href="/unserviceable-register" class="btn btn-outline-secondary btn-sm px-4">Reset</a>
+
+            <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Item</label>
+                <select name="item_id" class="form-select form-select-sm">
+                    <option value="">All Items</option>
+                    {% for item in dropdown_items %}
+                    <option value="{{ item.id }}" {% if item_id_filter == item.id %}selected{% endif %}>{{ item.code }} - {{ item.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label small fw-bold mb-1">Search Keywords</label>
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Search item name, code, asset no, serial, remarks..." value="{{ search }}">
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-warning btn-sm flex-fill"><i class="bi bi-search me-1"></i>Filter</button>
+                <a href="/unserviceable-register" class="btn btn-outline-secondary btn-sm flex-fill">Reset</a>
             </div>
         </form>
     </div>
@@ -112,6 +145,7 @@
                         <th>Status</th>
                         <th>Date Reported</th>
                         <th>Reason / Remarks</th>
+                        <th class="text-center">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -153,6 +187,8 @@
                                 <span class="badge bg-danger">{{ item.status }}</span>
                                 {% elif item.status == 'UNDER_REPAIR' %}
                                 <span class="badge bg-warning text-dark">{{ item.status }}</span>
+                                {% elif item.status == 'REPAIRED' %}
+                                <span class="badge bg-success">REPAIRED</span>
                                 {% elif item.status == 'CONDEMNED' %}
                                 <span class="badge bg-dark">{{ item.status }}</span>
                                 {% elif item.status == 'E_WASTE' %}
@@ -170,11 +206,21 @@
                                 <br><span class="text-muted">{{ item.remarks }}</span>
                                 {% endif %}
                             </td>
+                            <td class="text-center">
+                                {% if item.register_type == 'MATERIAL' and item.status not in ['REPAIRED', 'DISPOSED'] %}
+                                <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2"
+                                        onclick="openStatusModal({{ item.id }}, '{{ item.item_name }}', {{ item.quantity }}, '{{ item.status }}')">
+                                    <i class="bi bi-gear me-1"></i>Update
+                                </button>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="9" class="text-center py-5 text-muted">
+                            <td colspan="10" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox fs-2 d-block mb-2"></i>
                                 No unserviceable asset or material records found for the selected filters.
                             </td>
@@ -189,13 +235,99 @@
         <small class="text-muted">Page {{ page }} of {{ pages }} ({{ total }} records)</small>
         <ul class="pagination pagination-sm mb-0">
             <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page - 1 }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&item_id={{ item_id_filter or '' }}&financial_year_id={{ financial_year_id_filter or '' }}">Previous</a>
+                <a class="page-link" href="?page={{ page - 1 }}&search={{ search }}&category_id={{ category_id_filter or '' }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&item_id={{ item_id_filter or '' }}&financial_year_id={{ financial_year_id_filter or '' }}">Previous</a>
             </li>
             <li class="page-item {% if page >= pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page + 1 }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&item_id={{ item_id_filter or '' }}&financial_year_id={{ financial_year_id_filter or '' }}">Next</a>
+                <a class="page-link" href="?page={{ page + 1 }}&search={{ search }}&category_id={{ category_id_filter or '' }}&asset_or_material={{ asset_or_material }}&status_filter={{ status_filter }}&office_id={{ office_id_filter or '' }}&section_id={{ section_id_filter or '' }}&item_id={{ item_id_filter or '' }}&financial_year_id={{ financial_year_id_filter or '' }}">Next</a>
             </li>
         </ul>
     </div>
     {% endif %}
 </div>
+
+<!-- Modal for Status Update -->
+<div class="modal fade" id="statusUpdateModal" tabindex="-1" aria-labelledby="statusUpdateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="statusUpdateForm" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="statusUpdateModalLabel">Update Material Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Item: <strong id="modalItemName"></strong></p>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">New Status <span class="text-danger">*</span></label>
+                        <select name="status" id="modalStatusSelect" class="form-select" required>
+                        </select>
+                        <div class="form-text small text-muted">
+                            <span class="text-success fw-bold">REPAIRED</span> restores stock balance (ADJUSTMENT_IN).
+                            <br><span class="text-dark fw-bold">CONDEMNED / DISPOSED</span> does not double-deduct stock.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Quantity <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" min="0.01" name="quantity" id="modalQuantity" class="form-control" required>
+                        <div class="form-text small text-muted">Partial quantity will split this record. Max: <span id="modalMaxQty"></span></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Remarks / Inspection Notes</label>
+                        <textarea name="remarks" id="modalRemarks" rows="2" class="form-control" placeholder="Action details, vendor notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-3">Confirm Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allowedTransitions = {
+        'UNSERVICEABLE': [
+            { val: 'UNDER_REPAIR', label: 'Under Repair' },
+            { val: 'REPAIRED', label: 'Repaired (Restores Stock)' },
+            { val: 'CONDEMNED', label: 'Condemned' },
+            { val: 'DISPOSED', label: 'Disposed' }
+        ],
+        'UNDER_REPAIR': [
+            { val: 'REPAIRED', label: 'Repaired (Restores Stock)' },
+            { val: 'CONDEMNED', label: 'Condemned' },
+            { val: 'DISPOSED', label: 'Disposed' }
+        ],
+        'CONDEMNED': [
+            { val: 'DISPOSED', label: 'Disposed' }
+        ]
+    };
+
+    function openStatusModal(id, itemName, quantity, currentStatus) {
+        const form = document.getElementById('statusUpdateForm');
+        form.action = `/unserviceable-material/${id}/status`;
+
+        document.getElementById('modalItemName').textContent = itemName;
+        document.getElementById('modalMaxQty').textContent = quantity;
+        const qtyInput = document.getElementById('modalQuantity');
+        qtyInput.value = quantity;
+        qtyInput.max = quantity;
+
+        const select = document.getElementById('modalStatusSelect');
+        select.innerHTML = '';
+
+        const options = allowedTransitions[currentStatus] || [];
+        options.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.val;
+            el.textContent = opt.label;
+            select.appendChild(el);
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('statusUpdateModal'));
+        modal.show();
+    }
+</script>
 {% endblock %}

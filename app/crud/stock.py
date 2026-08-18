@@ -93,9 +93,9 @@ def get_stock_balances(
 
     result_items = []
     for item in pagination["items"]:
-        balance = get_item_stock(db, item_id=item.id, office_id=office_id)
-        unserviceable = get_item_unserviceable_stock(db, item_id=item.id, office_id=office_id)
-        usable = get_item_usable_stock(db, item_id=item.id, office_id=office_id)
+        balance = get_item_stock(db, item_id=item.id, office_id=office_id, financial_year_id=financial_year_id)
+        unserviceable = get_item_unserviceable_stock(db, item_id=item.id, office_id=office_id, financial_year_id=financial_year_id)
+        usable = get_item_usable_stock(db, item_id=item.id, office_id=office_id, financial_year_id=financial_year_id)
         result_items.append(
             StockBalanceRead(
                 item_id=item.id,
@@ -578,29 +578,27 @@ def get_office_stock_items(
     sm_map = dict(sm_query.group_by(StockMovement.item_id).all())
 
     # Items that have an explicit OPENING StockMovement
-    opening_sm_items = set(
-        row[0]
-        for row in db.query(StockMovement.item_id)
-        .filter(
-            StockMovement.office_id == office_id,
-            StockMovement.movement_type == MovementType.OPENING,
-            StockMovement.is_active == True,
-        )
-        .distinct()
-        .all()
+    opening_sm_query = db.query(StockMovement.item_id).filter(
+        StockMovement.office_id == office_id,
+        StockMovement.movement_type == MovementType.OPENING,
+        StockMovement.is_active == True,
     )
+    if financial_year_id is not None:
+        opening_sm_query = opening_sm_query.filter(StockMovement.financial_year_id == financial_year_id)
+    opening_sm_items = set(row[0] for row in opening_sm_query.distinct().all())
 
     # 3. Unserviceable materials batch map
-    unserv_mat_map = dict(
+    unserv_mat_query = (
         db.query(UnserviceableMaterial.item_id, func.coalesce(func.sum(UnserviceableMaterial.quantity), 0))
         .filter(
             UnserviceableMaterial.office_id == office_id,
             UnserviceableMaterial.is_active == True,
             UnserviceableMaterial.status.in_([UnserviceableStatus.UNSERVICEABLE, UnserviceableStatus.UNDER_REPAIR]),
         )
-        .group_by(UnserviceableMaterial.item_id)
-        .all()
     )
+    if financial_year_id is not None:
+        unserv_mat_query = unserv_mat_query.filter(UnserviceableMaterial.financial_year_id == financial_year_id)
+    unserv_mat_map = dict(unserv_mat_query.group_by(UnserviceableMaterial.item_id).all())
 
     # 4. Unserviceable assets batch map
     unserv_asset_map = dict(
@@ -620,16 +618,11 @@ def get_office_stock_items(
         .all()
     )
 
-    all_item_ids = set(op_map.keys()) | set(sm_map.keys())
-    if not all_item_ids:
-        return []
-
     items = (
         db.query(Item)
         .join(Category, Item.category_id == Category.id)
         .outerjoin(Unit, Item.unit_id == Unit.id)
         .filter(
-            Item.id.in_(all_item_ids),
             Item.is_active == True,
             Category.is_active == True,
         )
@@ -644,9 +637,9 @@ def get_office_stock_items(
         mv_qty = float(sm_map.get(item.id, 0.0))
         physical = round(op_qty + mv_qty, 2)
 
-        # Unserviceable stock
+        # Unserviceable stock (informational)
         unserv = round(float(unserv_mat_map.get(item.id, 0.0)) + float(unserv_asset_map.get(item.id, 0.0)), 2)
-        usable = round(max(0.0, physical - unserv), 2)
+        usable = physical
 
         is_asset = (
             item.category is not None

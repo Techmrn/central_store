@@ -112,7 +112,6 @@ def test_material_unserviceable_usable_stock_flow(db_session: Session, setup_uns
     oil_item = data["oil_item"]
     office = data["office"]
     fy = data["fy"]
-    uid = uuid.uuid4().hex[:6]
 
     # 1. Opening Stock = 100
     create_opening_stock(
@@ -127,11 +126,11 @@ def test_material_unserviceable_usable_stock_flow(db_session: Session, setup_uns
     )
 
     # Verify initial stock
-    assert get_item_stock(db_session, oil_item.id, office.id) == 100.0
-    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id) == 0.0
-    assert get_item_usable_stock(db_session, oil_item.id, office.id) == 100.0
+    assert get_item_stock(db_session, oil_item.id, office.id, fy.id) == 100.0
+    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id, fy.id) == 0.0
+    assert get_item_usable_stock(db_session, oil_item.id, office.id, fy.id) == 100.0
 
-    # 2. Mark 15 units as UNSERVICEABLE
+    # 2. Mark 15 units as UNSERVICEABLE (creates ADJUSTMENT_OUT = 15)
     un_mat = create_unserviceable_material(
         db_session,
         UnserviceableMaterialCreate(
@@ -144,26 +143,29 @@ def test_material_unserviceable_usable_stock_flow(db_session: Session, setup_uns
         ),
     )
     assert un_mat.status == UnserviceableStatus.UNSERVICEABLE
-    assert get_item_stock(db_session, oil_item.id, office.id) == 100.0
-    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id) == 15.0
-    assert get_item_usable_stock(db_session, oil_item.id, office.id) == 85.0
+    assert get_item_stock(db_session, oil_item.id, office.id, fy.id) == 85.0
+    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id, fy.id) == 15.0
+    assert get_item_usable_stock(db_session, oil_item.id, office.id, fy.id) == 85.0
 
     # 3. Stock availability check: 85 permitted, 86 rejected
-    assert validate_stock_availability(db_session, oil_item.id, office.id, 85.0) is True
+    assert validate_stock_availability(db_session, oil_item.id, office.id, 85.0, fy.id) is True
     with pytest.raises(ValueError, match="Insufficient stock"):
-        validate_stock_availability(db_session, oil_item.id, office.id, 86.0)
+        validate_stock_availability(db_session, oil_item.id, office.id, 86.0, fy.id)
 
-    # 4. Repair 5 units out of 15
+    # 4. Repair 5 units out of 15 (creates ADJUSTMENT_IN = 5)
     update_unserviceable_material_status(
         db_session,
         unserviceable_id=un_mat.id,
         update_data=UnserviceableMaterialStatusUpdate(
             status=UnserviceableStatus.REPAIRED,
+            quantity=5.0,
             remarks="5 units sealed and restored",
         ),
     )
-    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id) == 0.0
-    assert get_item_usable_stock(db_session, oil_item.id, office.id) == 100.0
+    # 85 + 5 = 90 stock, remaining active unserviceable = 10
+    assert get_item_stock(db_session, oil_item.id, office.id, fy.id) == 90.0
+    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id, fy.id) == 10.0
+    assert get_item_usable_stock(db_session, oil_item.id, office.id, fy.id) == 90.0
 
     # 5. Condemn and Dispose another batch
     un_mat2 = create_unserviceable_material(
@@ -176,28 +178,27 @@ def test_material_unserviceable_usable_stock_flow(db_session: Session, setup_uns
             reason="Expired chemical component",
         ),
     )
-    assert get_item_usable_stock(db_session, oil_item.id, office.id) == 90.0
+    # Stock drops from 90 to 80
+    assert get_item_stock(db_session, oil_item.id, office.id, fy.id) == 80.0
+    assert get_item_usable_stock(db_session, oil_item.id, office.id, fy.id) == 80.0
 
-    # Transition to CONDEMNED
+    # Transition to CONDEMNED (no stock movement)
     update_unserviceable_material_status(
         db_session,
         unserviceable_id=un_mat2.id,
         update_data=UnserviceableMaterialStatusUpdate(status=UnserviceableStatus.CONDEMNED),
     )
-    # CONDEMNED is inactive unserviceable, but physical stock is still 100
-    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id) == 0.0
-    assert get_item_usable_stock(db_session, oil_item.id, office.id) == 100.0
+    assert get_item_stock(db_session, oil_item.id, office.id, fy.id) == 80.0
+    assert get_item_usable_stock(db_session, oil_item.id, office.id, fy.id) == 80.0
 
-    # Transition to DISPOSED -> creates ADJUSTMENT_OUT stock movement
+    # Transition to DISPOSED (no second stock movement)
     update_unserviceable_material_status(
         db_session,
         unserviceable_id=un_mat2.id,
         update_data=UnserviceableMaterialStatusUpdate(status=UnserviceableStatus.DISPOSED),
     )
-
-    # Physical stock drops from 100 to 90
-    assert get_item_stock(db_session, oil_item.id, office.id) == 90.0
-    assert get_item_usable_stock(db_session, oil_item.id, office.id) == 90.0
+    assert get_item_stock(db_session, oil_item.id, office.id, fy.id) == 80.0
+    assert get_item_usable_stock(db_session, oil_item.id, office.id, fy.id) == 80.0
 
     # 6. Verify Unserviceable Register report
     report = get_unserviceable_register_report(db_session, office_id=office.id, asset_or_material="MATERIAL")
@@ -343,20 +344,19 @@ def test_financial_year_unserviceable_carry_over(db_session: Session, setup_unse
         ),
     )
 
-    # Next Financial Year 2035-2036
-    fy2 = db_session.query(FinancialYear).filter(FinancialYear.start_date == date(2035, 4, 1)).first()
+    # Next Financial Year 2040-2041
+    fy2 = db_session.query(FinancialYear).filter(FinancialYear.start_date == date(2040, 4, 1)).first()
     if not fy2:
-        fy2 = create_financial_year(
-            db_session,
-            FinancialYearCreate(
-                year_name="2035-36",
-                start_date=date(2035, 4, 1),
-                end_date=date(2036, 3, 31),
-                is_active=True,
-            ),
+        fy2 = FinancialYear(
+            year_name="2040-41",
+            start_date=date(2040, 4, 1),
+            end_date=date(2041, 3, 31),
+            is_current=True,
+            is_closed=False,
         )
-
-
+        db_session.add(fy2)
+        db_session.commit()
+        db_session.refresh(fy2)
 
     # Carry forward opening stock
     create_opening_stock(
@@ -370,9 +370,14 @@ def test_financial_year_unserviceable_carry_over(db_session: Session, setup_unse
         ),
     )
 
+    # In FY1, stock is 85 and active unserviceable is 15
+    assert get_item_stock(db_session, oil_item.id, office.id, fy1.id) == 85.0
+    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id, fy1.id) == 15.0
+    assert get_item_usable_stock(db_session, oil_item.id, office.id, fy1.id) == 85.0
 
-    # Verify unserviceable quantity remains 15 and usable stock = physical stock - 15
-    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id) == 15.0
-    assert get_item_usable_stock(db_session, oil_item.id, office.id) == get_item_stock(db_session, oil_item.id, office.id) - 15.0
+    # In FY2, stock is 100, usable stock is 100, and unserviceable is 0 (isolated)
+    assert get_item_stock(db_session, oil_item.id, office.id, fy2.id) == 100.0
+    assert get_item_usable_stock(db_session, oil_item.id, office.id, fy2.id) == 100.0
+    assert get_item_unserviceable_stock(db_session, oil_item.id, office.id, fy2.id) == 0.0
 
 

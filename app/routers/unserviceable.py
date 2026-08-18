@@ -43,10 +43,17 @@ def mark_material_unserviceable(
     current_user=Depends(require_permission("UNSERVICEABLE_CREATE")),
 ):
     try:
+        user_office_id = current_user.office_id if (current_user and current_user.office_id) else None
+        if user_office_id is not None and data.office_id != user_office_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Cannot declare unserviceable material for another office (assigned: {user_office_id}, requested: {data.office_id}).",
+            )
         return create_unserviceable_material(
             db=db,
             data=data,
             user_id=current_user.id if current_user else None,
+            office_id=user_office_id or data.office_id,
         )
     except ValueError as e:
         _handle_value_error(e)
@@ -64,11 +71,13 @@ def update_material_status(
     current_user=Depends(require_permission("UNSERVICEABLE_UPDATE")),
 ):
     try:
+        user_office_id = current_user.office_id if (current_user and current_user.office_id) else None
         return update_unserviceable_material_status(
             db=db,
             unserviceable_id=unserviceable_id,
             update_data=data,
             user_id=current_user.id if current_user else None,
+            office_id=user_office_id,
         )
     except ValueError as e:
         _handle_value_error(e)
@@ -86,11 +95,13 @@ def update_asset_lifecycle_status(
     current_user=Depends(require_permission("UNSERVICEABLE_UPDATE")),
 ):
     try:
+        user_office_id = current_user.office_id if (current_user and current_user.office_id) else None
         return transition_asset_unserviceable_status(
             db=db,
             asset_id=asset_id,
             update_data=data,
             user_id=current_user.id if current_user else None,
+            office_id=user_office_id,
         )
     except ValueError as e:
         _handle_value_error(e)

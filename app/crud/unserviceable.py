@@ -7,6 +7,7 @@ from app.models.asset import Asset
 from app.models.asset_movement import AssetMovement
 from app.models.category import Category
 from app.models.enums import AssetMovementType, AssetStatus, Category_Type, MovementType, UnserviceableStatus
+from app.models.financial_year import FinancialYear
 from app.models.item import Item
 from app.models.office import Office
 from app.models.section import Section
@@ -19,6 +20,25 @@ from app.schemas.unserviceable import (
     UnserviceableRegisterItem,
 )
 from app.services.stock_service import get_item_usable_stock, validate_stock_availability
+
+ALLOWED_MATERIAL_TRANSITIONS = {
+    UnserviceableStatus.UNSERVICEABLE: {
+        UnserviceableStatus.UNDER_REPAIR,
+        UnserviceableStatus.REPAIRED,
+        UnserviceableStatus.CONDEMNED,
+        UnserviceableStatus.DISPOSED,
+    },
+    UnserviceableStatus.UNDER_REPAIR: {
+        UnserviceableStatus.REPAIRED,
+        UnserviceableStatus.CONDEMNED,
+        UnserviceableStatus.DISPOSED,
+    },
+    UnserviceableStatus.REPAIRED: set(),
+    UnserviceableStatus.CONDEMNED: {
+        UnserviceableStatus.DISPOSED,
+    },
+    UnserviceableStatus.DISPOSED: set(),
+}
 
 ALLOWED_ASSET_TRANSITIONS = {
     AssetStatus.IN_STORE: {AssetStatus.DAMAGED, AssetStatus.UNDER_REPAIR, AssetStatus.CONDEMNED, AssetStatus.ISSUED},
@@ -35,44 +55,85 @@ def create_unserviceable_material(
     db: Session,
     data: UnserviceableMaterialCreate,
     user_id: Optional[int] = None,
+    office_id: Optional[int] = None,
 ) -> UnserviceableMaterial:
-    # 1. Validate Item & Office
+    # 1. Authoritative Office validation
+    target_office_id = office_id if office_id is not None else data.office_id
+    if office_id is not None and data.office_id != office_id:
+        raise ValueError(f"Office mismatch: requested office {data.office_id} does not match authorized office {office_id}.")
+
+    # Validate Item
     item = db.query(Item).filter(Item.id == data.item_id, Item.is_active == True).first()
     if not item:
         raise ValueError(f"Item ID {data.item_id} not found.")
 
-    office = db.query(Office).filter(Office.id == data.office_id, Office.is_active == True).first()
+    # Validate Office
+    office = db.query(Office).filter(Office.id == target_office_id, Office.is_active == True).first()
     if not office:
-        raise ValueError(f"Office ID {data.office_id} not found.")
+        raise ValueError(f"Office ID {target_office_id} not found.")
 
+    # Validate Financial Year
+    fy = db.query(FinancialYear).filter(FinancialYear.id == data.financial_year_id).first()
+    if not fy:
+        raise ValueError(f"Financial Year ID {data.financial_year_id} not found.")
+    if fy.is_closed:
+        raise ValueError(f"Financial Year {fy.year_name} is closed.")
+
+    # Validate Section
     if data.section_id:
         section = db.query(Section).filter(Section.id == data.section_id, Section.is_active == True).first()
-        if not section or section.office_id != data.office_id:
-            raise ValueError(f"Invalid section ID {data.section_id} for office ID {data.office_id}.")
+        if not section or section.office_id != target_office_id:
+            raise ValueError(f"Invalid section ID {data.section_id} for office ID {target_office_id}.")
 
-    # 2. Validate against usable stock
-    usable_stock = get_item_usable_stock(db, item_id=data.item_id, office_id=data.office_id)
-    if data.quantity > usable_stock:
-        raise ValueError(
-            f"Cannot mark {data.quantity} units unserviceable. Usable stock is only {usable_stock}."
-        )
+    # Validate quantity
+    if data.quantity <= 0:
+        raise ValueError("Quantity must be greater than 0.")
 
-    rec = UnserviceableMaterial(
-        financial_year_id=data.financial_year_id,
+    # 2. Validate against available usable stock in this FY and Office
+    validate_stock_availability(
+        db=db,
         item_id=data.item_id,
-        office_id=data.office_id,
-        section_id=data.section_id,
-        quantity=data.quantity,
-        reason=data.reason,
-        status=UnserviceableStatus.UNSERVICEABLE,
-        reference_no=data.reference_no,
-        remarks=data.remarks,
-        reported_by_id=user_id,
+        office_id=target_office_id,
+        required_qty=data.quantity,
+        financial_year_id=data.financial_year_id,
     )
-    db.add(rec)
-    db.commit()
-    db.refresh(rec)
-    return rec
+
+    try:
+        rec = UnserviceableMaterial(
+            financial_year_id=data.financial_year_id,
+            item_id=data.item_id,
+            office_id=target_office_id,
+            section_id=data.section_id,
+            quantity=data.quantity,
+            reason=data.reason,
+            status=UnserviceableStatus.UNSERVICEABLE,
+            reference_no=data.reference_no,
+            remarks=data.remarks,
+            reported_by_id=user_id,
+        )
+        db.add(rec)
+        db.flush()
+
+        sm = StockMovement(
+            financial_year_id=rec.financial_year_id,
+            item_id=rec.item_id,
+            office_id=rec.office_id,
+            section_id=rec.section_id,
+            movement_type=MovementType.ADJUSTMENT_OUT,
+            quantity_in=0.0,
+            quantity_out=rec.quantity,
+            reference_type="UNSERVICEABLE",
+            reference_id=rec.id,
+            reference_no=rec.reference_no or f"UNS-{rec.id}",
+            remarks=rec.reason,
+        )
+        db.add(sm)
+        db.commit()
+        db.refresh(rec)
+        return rec
+    except Exception:
+        db.rollback()
+        raise
 
 
 def update_unserviceable_material_status(
@@ -80,69 +141,91 @@ def update_unserviceable_material_status(
     unserviceable_id: int,
     update_data: UnserviceableMaterialStatusUpdate,
     user_id: Optional[int] = None,
+    office_id: Optional[int] = None,
 ) -> UnserviceableMaterial:
-    rec = db.query(UnserviceableMaterial).filter(
+    query = db.query(UnserviceableMaterial).filter(
         UnserviceableMaterial.id == unserviceable_id,
         UnserviceableMaterial.is_active == True,
-    ).first()
+    )
+    if office_id is not None:
+        query = query.filter(UnserviceableMaterial.office_id == office_id)
 
+    rec = query.first()
     if not rec:
         raise ValueError(f"Unserviceable material record ID {unserviceable_id} not found.")
 
     target_status = update_data.status
     current_status = rec.status
 
-    if current_status == UnserviceableStatus.DISPOSED:
-        raise ValueError("Disposed unserviceable material record cannot be modified.")
+    allowed_targets = ALLOWED_MATERIAL_TRANSITIONS.get(current_status, set())
+    if target_status not in allowed_targets:
+        raise ValueError(f"Invalid status transition from {current_status.value} to {target_status.value}.")
 
-    affect_qty = update_data.quantity if update_data.quantity else float(rec.quantity)
+    affect_qty = update_data.quantity if update_data.quantity is not None else float(rec.quantity)
+    if affect_qty <= 0:
+        raise ValueError("Quantity must be greater than 0.")
     if affect_qty > float(rec.quantity):
         raise ValueError(f"Quantity ({affect_qty}) cannot exceed current unserviceable record quantity ({rec.quantity}).")
 
-    # If partial quantity status change
-    if affect_qty < float(rec.quantity):
-        rec.quantity = float(rec.quantity) - affect_qty
-        new_rec = UnserviceableMaterial(
-            financial_year_id=rec.financial_year_id,
-            item_id=rec.item_id,
-            office_id=rec.office_id,
-            section_id=rec.section_id,
-            quantity=affect_qty,
-            reason=rec.reason,
-            status=target_status,
-            reference_no=rec.reference_no,
-            remarks=update_data.remarks or rec.remarks,
-            reported_by_id=user_id or rec.reported_by_id,
-        )
-        db.add(new_rec)
-        target_obj = new_rec
-    else:
-        rec.status = target_status
-        if update_data.remarks:
-            rec.remarks = update_data.remarks
-        target_obj = rec
+    try:
+        # If partial quantity status change
+        if affect_qty < float(rec.quantity):
+            rec.quantity = float(rec.quantity) - affect_qty
+            new_rec = UnserviceableMaterial(
+                financial_year_id=rec.financial_year_id,
+                item_id=rec.item_id,
+                office_id=rec.office_id,
+                section_id=rec.section_id,
+                quantity=affect_qty,
+                reason=rec.reason,
+                status=target_status,
+                reference_no=rec.reference_no,
+                remarks=update_data.remarks or rec.remarks,
+                reported_by_id=user_id or rec.reported_by_id,
+            )
+            db.add(new_rec)
+            db.flush()
+            target_obj = new_rec
+        else:
+            rec.status = target_status
+            if update_data.remarks:
+                rec.remarks = update_data.remarks
+            db.flush()
+            target_obj = rec
 
-    # If disposed physically, create ADJUSTMENT_OUT StockMovement to reduce Physical Stock
-    if target_status == UnserviceableStatus.DISPOSED:
-        sm = StockMovement(
-            financial_year_id=target_obj.financial_year_id,
-            item_id=target_obj.item_id,
-            office_id=target_obj.office_id,
-            section_id=target_obj.section_id,
-            movement_type=MovementType.ADJUSTMENT_OUT,
-            quantity_in=0.0,
-            quantity_out=affect_qty,
-            movement_date=func.now(),
-            reference_type="DISPOSAL",
-            reference_id=target_obj.id,
-            reference_no=target_obj.reference_no or f"UNS-DISP-{target_obj.id}",
-            remarks=f"Unserviceable material disposed: {target_obj.reason}",
-        )
-        db.add(sm)
+        # When transitioning to REPAIRED -> create ADJUSTMENT_IN with idempotency check
+        if target_status == UnserviceableStatus.REPAIRED:
+            existing_sm = db.query(StockMovement).filter(
+                StockMovement.reference_type == "UNSERVICEABLE_REPAIR_RETURN",
+                StockMovement.reference_id == target_obj.id,
+                StockMovement.is_active == True,
+            ).first()
+            if existing_sm:
+                raise ValueError(f"Repair return movement already recorded for unserviceable material ID {target_obj.id}.")
 
-    db.commit()
-    db.refresh(target_obj)
-    return target_obj
+            sm = StockMovement(
+                financial_year_id=target_obj.financial_year_id,
+                item_id=target_obj.item_id,
+                office_id=target_obj.office_id,
+                section_id=target_obj.section_id,
+                movement_type=MovementType.ADJUSTMENT_IN,
+                quantity_in=affect_qty,
+                quantity_out=0.0,
+                reference_type="UNSERVICEABLE_REPAIR_RETURN",
+                reference_id=target_obj.id,
+                reference_no=target_obj.reference_no or f"UNS-REPAIR-{target_obj.id}",
+                remarks=f"Repaired material restored to stock: {target_obj.reason}",
+            )
+            db.add(sm)
+
+        # For UNDER_REPAIR, CONDEMNED, DISPOSED -> NO stock movements
+
+        db.commit()
+        db.refresh(target_obj)
+        return target_obj
+    except Exception:
+        db.rollback()
+        raise
 
 
 def transition_asset_unserviceable_status(
@@ -150,8 +233,13 @@ def transition_asset_unserviceable_status(
     asset_id: int,
     update_data: AssetUnserviceableUpdate,
     user_id: Optional[int] = None,
+    office_id: Optional[int] = None,
 ) -> Asset:
-    asset = db.query(Asset).filter(Asset.id == asset_id, Asset.is_active == True).first()
+    query = db.query(Asset).filter(Asset.id == asset_id, Asset.is_active == True)
+    if office_id is not None:
+        query = query.filter(Asset.office_id == office_id)
+
+    asset = query.first()
     if not asset:
         raise ValueError(f"Asset ID {asset_id} not found.")
 
@@ -210,12 +298,20 @@ def get_unserviceable_register_report(
     category_id: Optional[int] = None,
     asset_or_material: Optional[str] = None,  # "ASSET" or "MATERIAL"
     status_filter: Optional[str] = None,
+    search: Optional[str] = None,
     page: int = 1,
 ):
     results = []
+    clean_type = (asset_or_material or "").strip().upper()
+    clean_status = (status_filter or "").strip().upper()
+    clean_search = (search or "").strip()
+
+    valid_asset_statuses = {s.value for s in AssetStatus}
+    valid_material_statuses = {s.value for s in UnserviceableStatus}
 
     # 1. Unserviceable Assets Query
-    if asset_or_material in (None, "ASSET"):
+    include_assets = clean_type in ("", "ALL", "ASSET")
+    if include_assets and (not clean_status or clean_status in valid_asset_statuses):
         asset_query = (
             db.query(Asset, Item, Category, Office, Section)
             .join(Item, Asset.item_id == Item.id)
@@ -242,8 +338,20 @@ def get_unserviceable_register_report(
             asset_query = asset_query.filter(Asset.item_id == item_id)
         if category_id is not None:
             asset_query = asset_query.filter(Item.category_id == category_id)
-        if status_filter:
-            asset_query = asset_query.filter(Asset.status == status_filter)
+        if clean_status:
+            asset_query = asset_query.filter(Asset.status == clean_status)
+
+        if clean_search:
+            asset_query = asset_query.filter(
+                or_(
+                    Item.name.ilike(f"%{clean_search}%"),
+                    Item.code.ilike(f"%{clean_search}%"),
+                    Category.name.ilike(f"%{clean_search}%"),
+                    Asset.asset_no.ilike(f"%{clean_search}%"),
+                    Asset.serial_no.ilike(f"%{clean_search}%"),
+                    Asset.remarks.ilike(f"%{clean_search}%"),
+                )
+            )
 
         for asset, item, category, office, section in asset_query.all():
             make_val = asset.asset_detail.make if asset.asset_detail else None
@@ -288,7 +396,8 @@ def get_unserviceable_register_report(
             )
 
     # 2. Unserviceable Materials Query
-    if asset_or_material in (None, "MATERIAL"):
+    include_materials = clean_type in ("", "ALL", "MATERIAL")
+    if include_materials and (not clean_status or clean_status in valid_material_statuses):
         mat_query = (
             db.query(UnserviceableMaterial, Item, Category, Office, Section)
             .join(Item, UnserviceableMaterial.item_id == Item.id)
@@ -308,8 +417,20 @@ def get_unserviceable_register_report(
             mat_query = mat_query.filter(UnserviceableMaterial.item_id == item_id)
         if category_id is not None:
             mat_query = mat_query.filter(Item.category_id == category_id)
-        if status_filter:
-            mat_query = mat_query.filter(UnserviceableMaterial.status == status_filter)
+        if clean_status:
+            mat_query = mat_query.filter(UnserviceableMaterial.status == clean_status)
+
+        if clean_search:
+            mat_query = mat_query.filter(
+                or_(
+                    Item.name.ilike(f"%{clean_search}%"),
+                    Item.code.ilike(f"%{clean_search}%"),
+                    Category.name.ilike(f"%{clean_search}%"),
+                    UnserviceableMaterial.reference_no.ilike(f"%{clean_search}%"),
+                    UnserviceableMaterial.reason.ilike(f"%{clean_search}%"),
+                    UnserviceableMaterial.remarks.ilike(f"%{clean_search}%"),
+                )
+            )
 
         for mat, item, category, office, section in mat_query.all():
             user_name = mat.reported_by.full_name if mat.reported_by else None
@@ -345,7 +466,7 @@ def get_unserviceable_register_report(
     results.sort(key=lambda x: x.date_reported, reverse=True)
 
     # Manual pagination over combined list
-    page_size = 10
+    page_size = 25
     total_count = len(results)
     total_pages = max(1, (total_count + page_size - 1) // page_size)
     start = (page - 1) * page_size
