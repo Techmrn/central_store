@@ -3,9 +3,9 @@ from pydantic import BaseModel, ConfigDict
 
 
 class FinancialYearBase(BaseModel):
-    year_name: str
     start_date: date
     end_date: date
+    year_name: str | None = None
 
 
 class FinancialYearCreate(FinancialYearBase):
@@ -13,13 +13,14 @@ class FinancialYearCreate(FinancialYearBase):
 
 
 class FinancialYearUpdate(FinancialYearBase):
-    is_current: bool
-    is_closed: bool
-    is_active: bool
+    is_current: bool = False
+    is_closed: bool = False
+    is_active: bool = True
 
 
 class FinancialYearRead(FinancialYearBase):
     id: int
+    year_name: str
     is_current: bool
     is_closed: bool
     is_active: bool
