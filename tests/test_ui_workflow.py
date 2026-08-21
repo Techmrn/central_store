@@ -68,12 +68,16 @@ def auth_client(db_session: Session):
     app.dependency_overrides.clear()
 
 
+from app.crud.financial_year import get_current_financial_year
+
 def test_physical_indent_recording_and_single_step_submit_workflow(auth_client, db_session: Session):
     client = auth_client
     uid = uuid.uuid4().hex[:6]
     printed_indent_no = f"PRINT-{uid}"
 
-    fy = db_session.query(FinancialYear).filter(FinancialYear.is_active == True).first()
+    fy = get_current_financial_year(db_session)
+    if not fy:
+        fy = db_session.query(FinancialYear).filter(FinancialYear.is_active == True).first()
     store_office = db_session.query(Office).filter(Office.is_active == True).first()
     mat_cat = db_session.query(Category).filter(Category.type == Category_Type.MATERIAL, Category.is_active == True).first()
     asset_cat = db_session.query(Category).filter(Category.type == Category_Type.ASSET, Category.is_active == True).first()

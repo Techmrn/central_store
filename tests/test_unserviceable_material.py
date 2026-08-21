@@ -84,8 +84,8 @@ def fixture_setup(db_session: Session):
     uid = uuid.uuid4().hex[:6]
 
     # Offices
-    office_a = create_office(db_session, OfficeCreate(name=f"Office A {uid}", code=f"OA{uid}", office_type=OfficeType.GCP))
-    office_b = create_office(db_session, OfficeCreate(name=f"Office B {uid}", code=f"OB{uid}", office_type=OfficeType.GCP))
+    office_a = create_office(db_session, OfficeCreate(name=f"Office A {uid}", code=f"OA{uid}", office_type=OfficeType.BRANCH))
+    office_b = create_office(db_session, OfficeCreate(name=f"Office B {uid}", code=f"OB{uid}", office_type=OfficeType.BRANCH))
 
     # Sections
     sec_a = create_section(db_session, SectionCreate(name=f"Sec A {uid}", code=f"SA{uid}", office_id=office_a.id))

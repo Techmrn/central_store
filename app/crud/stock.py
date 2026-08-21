@@ -31,6 +31,7 @@ from app.schemas.stock import (
     ItemTransactionRegisterItem,
     StockBalanceRead,
 )
+from app.services.scope_service import get_stock_office_id
 from app.services.stock_service import get_item_stock, get_item_unserviceable_stock, get_item_usable_stock
 
 
@@ -56,14 +57,16 @@ def get_stock_balances(
     if category_id is not None:
         query = query.filter(Item.category_id == category_id)
 
-    if office_id is not None:
+    target_office_id = get_stock_office_id(db, office_id) if office_id is not None else None
+
+    if target_office_id is not None:
         op_item_ids = (
             db.query(OpeningStock.item_id)
-            .filter(OpeningStock.office_id == office_id, OpeningStock.is_active == True)
+            .filter(OpeningStock.office_id == target_office_id, OpeningStock.is_active == True)
         )
         sm_item_ids = (
             db.query(StockMovement.item_id)
-            .filter(StockMovement.office_id == office_id, StockMovement.is_active == True)
+            .filter(StockMovement.office_id == target_office_id, StockMovement.is_active == True)
         )
         if financial_year_id is not None:
             op_item_ids = op_item_ids.filter(OpeningStock.financial_year_id == financial_year_id)
@@ -127,8 +130,10 @@ def get_stock_ledger(
     if item_id is not None:
         query = query.filter(StockMovement.item_id == item_id)
 
-    if office_id is not None:
-        query = query.filter(StockMovement.office_id == office_id)
+    target_office_id = get_stock_office_id(db, office_id) if office_id is not None else None
+
+    if target_office_id is not None:
+        query = query.filter(StockMovement.office_id == target_office_id)
 
     if financial_year_id is not None:
         query = query.filter(StockMovement.financial_year_id == financial_year_id)
@@ -227,6 +232,8 @@ def get_item_transaction_register(
     Item Transaction Register showing movement history, running balance, indent number, and to office/section.
     Includes Opening Stock as initial movement.
     """
+    target_office_id = get_stock_office_id(db, office_id) if office_id is not None else None
+
     # 1. Fetch any Opening Stock record for this item/office/FY
     op_query = (
         db.query(OpeningStock, FinancialYear, Office)
@@ -237,8 +244,8 @@ def get_item_transaction_register(
             OpeningStock.is_active == True,
         )
     )
-    if office_id is not None:
-        op_query = op_query.filter(OpeningStock.office_id == office_id)
+    if target_office_id is not None:
+        op_query = op_query.filter(OpeningStock.office_id == target_office_id)
     if financial_year_id is not None:
         op_query = op_query.filter(OpeningStock.financial_year_id == financial_year_id)
 
@@ -257,8 +264,8 @@ def get_item_transaction_register(
         )
     )
 
-    if office_id is not None:
-        query = query.filter(StockMovement.office_id == office_id)
+    if target_office_id is not None:
+        query = query.filter(StockMovement.office_id == target_office_id)
 
     if section_id is not None:
         query = query.filter(StockMovement.section_id == section_id)
@@ -552,10 +559,12 @@ def get_office_stock_items(
     from app.models.unit import Unit
     from app.models.asset import Asset
 
+    target_office_id = get_stock_office_id(db, office_id)
+
     # 1. Opening stock batch map
     op_query = (
         db.query(OpeningStock.item_id, func.coalesce(func.sum(OpeningStock.quantity), 0))
-        .filter(OpeningStock.office_id == office_id, OpeningStock.is_active == True)
+        .filter(OpeningStock.office_id == target_office_id, OpeningStock.is_active == True)
     )
     if financial_year_id is not None:
         op_query = op_query.filter(OpeningStock.financial_year_id == financial_year_id)
@@ -568,7 +577,7 @@ def get_office_stock_items(
             func.coalesce(func.sum(StockMovement.quantity_in - StockMovement.quantity_out), 0)
         )
         .filter(
-            StockMovement.office_id == office_id,
+            StockMovement.office_id == target_office_id,
             StockMovement.is_active == True,
             StockMovement.transaction_source != TransactionSource.HISTORICAL,
         )
@@ -579,7 +588,7 @@ def get_office_stock_items(
 
     # Items that have an explicit OPENING StockMovement
     opening_sm_query = db.query(StockMovement.item_id).filter(
-        StockMovement.office_id == office_id,
+        StockMovement.office_id == target_office_id,
         StockMovement.movement_type == MovementType.OPENING,
         StockMovement.is_active == True,
     )
@@ -591,7 +600,7 @@ def get_office_stock_items(
     unserv_mat_query = (
         db.query(UnserviceableMaterial.item_id, func.coalesce(func.sum(UnserviceableMaterial.quantity), 0))
         .filter(
-            UnserviceableMaterial.office_id == office_id,
+            UnserviceableMaterial.office_id == target_office_id,
             UnserviceableMaterial.is_active == True,
             UnserviceableMaterial.status.in_([UnserviceableStatus.UNSERVICEABLE, UnserviceableStatus.UNDER_REPAIR]),
         )

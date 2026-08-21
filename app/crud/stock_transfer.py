@@ -11,6 +11,7 @@ from app.models.section import Section
 from app.models.stock_transfer import StockTransfer, StockTransferLine, StockTransferLineAsset
 from app.schemas.stock_transfer import StockTransferCreate, StockTransferUpdate
 from app.services.document_number_service import generate_document_number
+from app.services.scope_service import get_stock_office_id
 
 
 def create_transfer(
@@ -24,7 +25,10 @@ def create_transfer(
     if not from_office or not to_office:
         raise ValueError("Source or destination office not found.")
 
-    if transfer_in.from_office_id == transfer_in.to_office_id and transfer_in.from_section_id == transfer_in.to_section_id:
+    from_stock_office_id = get_stock_office_id(db, transfer_in.from_office_id)
+    to_stock_office_id = get_stock_office_id(db, transfer_in.to_office_id)
+
+    if from_stock_office_id == to_stock_office_id and transfer_in.from_section_id == transfer_in.to_section_id:
         raise ValueError("Source and destination locations cannot be identical.")
 
     if not transfer_in.lines:

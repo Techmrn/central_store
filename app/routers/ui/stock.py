@@ -5,7 +5,7 @@ All register pages use existing CRUD/service functions — no new tables.
 from datetime import date
 from typing import Optional, Union
 from fastapi import APIRouter, Depends, Request, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -251,6 +251,11 @@ def distribution_register_ui(
 # ──────────────────────────────────────────────────────────────────
 # 4. ASSET REGISTER
 # ──────────────────────────────────────────────────────────────────
+@router.get("/assets", response_class=HTMLResponse)
+def assets_redirect(request: Request):
+    return RedirectResponse(url="/asset-register", status_code=303)
+
+
 @router.get("/asset-register", response_class=HTMLResponse)
 def asset_register_ui(
     request: Request,

@@ -34,6 +34,7 @@ from app.services.posting_service import post_issue
 
 from app.schemas.indent import IndentCreate, IndentLineCreate, IndentUpdate, IndentLineUpdate
 from app.schemas.issue import IssueCreate, IssueLineCreate
+from app.services.scope_service import get_stock_office_id
 from app.services.stock_service import (
     get_item_stock,
     get_item_unserviceable_stock,
@@ -295,11 +296,12 @@ async def submit_physical_indent_ui(
             item_obj = db.query(Item).filter(Item.id == item_id).first()
             asset_ids = []
             if item_obj and item_obj.category and item_obj.category.type == Category_Type.ASSET:
+                store_office_id = get_stock_office_id(db, office_id)
                 available_assets = (
                     db.query(Asset)
                     .filter(
                         Asset.item_id == item_id,
-                        Asset.office_id == office_id,
+                        Asset.office_id == store_office_id,
                         Asset.status == AssetStatus.IN_STORE,
                         Asset.is_active == True,
                     )
@@ -431,9 +433,9 @@ def view_indent_detail_ui(
         if not line.is_active:
             continue
 
-        usable = get_item_usable_stock(db, item_id=line.item_id, office_id=indent.office_id)
-        physical = get_item_stock(db, item_id=line.item_id, office_id=indent.office_id)
-        unserviceable = get_item_unserviceable_stock(db, item_id=line.item_id, office_id=indent.office_id)
+        usable = get_item_usable_stock(db, item_id=line.item_id, office_id=indent.office_id, financial_year_id=indent.financial_year_id)
+        physical = get_item_stock(db, item_id=line.item_id, office_id=indent.office_id, financial_year_id=indent.financial_year_id)
+        unserviceable = get_item_unserviceable_stock(db, item_id=line.item_id, office_id=indent.office_id, financial_year_id=indent.financial_year_id)
 
         is_asset = False
         if line.item and line.item.category:

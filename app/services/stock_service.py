@@ -6,6 +6,7 @@ from app.models.enums import MovementType, TransactionSource, UnserviceableStatu
 from app.models.opening_stock import OpeningStock
 from app.models.stock_movement import StockMovement
 from app.models.unserviceable_material import UnserviceableMaterial
+from app.services.scope_service import get_stock_office_id
 
 
 def get_item_stock(
@@ -20,6 +21,8 @@ def get_item_stock(
     Excludes historical audit transactions (transaction_source == HISTORICAL).
     Double-counting protection: If OPENING StockMovement exists for this FY, OpeningStock model is not added twice.
     """
+    target_office_id = get_stock_office_id(db, office_id) if office_id is not None else None
+
     sm_query = db.query(
         func.coalesce(func.sum(StockMovement.quantity_in - StockMovement.quantity_out), 0)
     ).filter(
@@ -28,8 +31,8 @@ def get_item_stock(
         StockMovement.transaction_source != TransactionSource.HISTORICAL,
     )
 
-    if office_id is not None:
-        sm_query = sm_query.filter(StockMovement.office_id == office_id)
+    if target_office_id is not None:
+        sm_query = sm_query.filter(StockMovement.office_id == target_office_id)
 
     if financial_year_id is not None:
         sm_query = sm_query.filter(StockMovement.financial_year_id == financial_year_id)
@@ -41,8 +44,8 @@ def get_item_stock(
         StockMovement.movement_type == MovementType.OPENING,
         StockMovement.is_active == True,
     )
-    if office_id is not None:
-        has_opening_movement_query = has_opening_movement_query.filter(StockMovement.office_id == office_id)
+    if target_office_id is not None:
+        has_opening_movement_query = has_opening_movement_query.filter(StockMovement.office_id == target_office_id)
     if financial_year_id is not None:
         has_opening_movement_query = has_opening_movement_query.filter(StockMovement.financial_year_id == financial_year_id)
 
@@ -54,8 +57,8 @@ def get_item_stock(
             OpeningStock.item_id == item_id,
             OpeningStock.is_active == True,
         )
-        if office_id is not None:
-            op_query = op_query.filter(OpeningStock.office_id == office_id)
+        if target_office_id is not None:
+            op_query = op_query.filter(OpeningStock.office_id == target_office_id)
         if financial_year_id is not None:
             op_query = op_query.filter(OpeningStock.financial_year_id == financial_year_id)
         opening_balance = float(op_query.scalar() or 0.0)
@@ -75,6 +78,8 @@ def get_item_unserviceable_stock(
     Includes materials currently in UNSERVICEABLE or UNDER_REPAIR status.
     Excludes REPAIRED, CONDEMNED, or DISPOSED materials.
     """
+    target_office_id = get_stock_office_id(db, office_id) if office_id is not None else None
+
     un_query = db.query(
         func.coalesce(func.sum(UnserviceableMaterial.quantity), 0)
     ).filter(
@@ -86,8 +91,8 @@ def get_item_unserviceable_stock(
         ]),
     )
 
-    if office_id is not None:
-        un_query = un_query.filter(UnserviceableMaterial.office_id == office_id)
+    if target_office_id is not None:
+        un_query = un_query.filter(UnserviceableMaterial.office_id == target_office_id)
 
     if financial_year_id is not None:
         un_query = un_query.filter(UnserviceableMaterial.financial_year_id == financial_year_id)

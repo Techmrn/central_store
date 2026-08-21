@@ -19,6 +19,7 @@ from app.schemas.unserviceable import (
     UnserviceableMaterialStatusUpdate,
     UnserviceableRegisterItem,
 )
+from app.services.scope_service import get_stock_office_id
 from app.services.stock_service import get_item_usable_stock, validate_stock_availability
 
 ALLOWED_MATERIAL_TRANSITIONS = {
@@ -117,7 +118,7 @@ def create_unserviceable_material(
         sm = StockMovement(
             financial_year_id=rec.financial_year_id,
             item_id=rec.item_id,
-            office_id=rec.office_id,
+            office_id=get_stock_office_id(db, rec.office_id),
             section_id=rec.section_id,
             movement_type=MovementType.ADJUSTMENT_OUT,
             quantity_in=0.0,
@@ -206,7 +207,7 @@ def update_unserviceable_material_status(
             sm = StockMovement(
                 financial_year_id=target_obj.financial_year_id,
                 item_id=target_obj.item_id,
-                office_id=target_obj.office_id,
+                office_id=get_stock_office_id(db, target_obj.office_id),
                 section_id=target_obj.section_id,
                 movement_type=MovementType.ADJUSTMENT_IN,
                 quantity_in=affect_qty,

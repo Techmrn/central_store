@@ -63,7 +63,7 @@ from app.schemas.unit import UnitCreate
 def setup_unserviceable_data(db_session: Session):
     uid = uuid.uuid4().hex[:6]
     # Setup Office
-    office = create_office(db_session, OfficeCreate(name=f"Central Store Test Office {uid}", code=f"CST{uid}", office_type=OfficeType.GCP))
+    office = create_office(db_session, OfficeCreate(name=f"Central Store Test Office {uid}", code=f"CST{uid}", office_type=OfficeType.BRANCH))
 
     # Setup Unit
     unit = create_unit(db_session, UnitCreate(name=f"Liters {uid}", symbol=f"L{uid}"))

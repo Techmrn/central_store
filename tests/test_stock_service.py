@@ -65,7 +65,7 @@ def get_or_create_test_fy(db: Session, start_year: int, is_current: bool = False
 @pytest.fixture
 def stock_fixture(db_session: Session):
     uid = uuid.uuid4().hex[:6]
-    office = create_office(db_session, OfficeCreate(name=f"Stock Test Office {uid}", code=f"STO{uid}", office_type=OfficeType.GCP))
+    office = create_office(db_session, OfficeCreate(name=f"Stock Test Office {uid}", code=f"STO{uid}", office_type=OfficeType.BRANCH))
     unit = create_unit(db_session, UnitCreate(name=f"Units {uid}", symbol=f"U{uid}"))
     cat = create_category(db_session, CategoryCreate(name=f"General {uid}", code=f"GEN{uid}", type=Category_Type.MATERIAL))
     item = create_item(db_session, ItemCreate(name=f"Stock Item {uid}", code=f"SI-{uid}", category_id=cat.id, unit_id=unit.id))

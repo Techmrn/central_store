@@ -28,6 +28,7 @@ from app.schemas.issue import IssueCreate, IssueLineCreate
 from app.schemas.outward_pass import OutwardPassCreate
 from app.services.document_number_service import generate_document_number
 from app.services.posting_service import post_issue
+from app.services.scope_service import get_stock_office_id
 from app.services.stock_service import get_item_usable_stock
 
 router = APIRouter(
@@ -118,7 +119,8 @@ def create_issue_form_ui(
         # Effective issue quantity defaults to issued_quantity if set > 0, else requested_quantity
         default_qty = line.issued_quantity if (line.issued_quantity is not None and line.issued_quantity > 0) else line.requested_quantity
         
-        usable = get_item_usable_stock(db, item_id=line.item_id, office_id=indent.office_id)
+        store_office_id = get_stock_office_id(db, indent.office_id)
+        usable = get_item_usable_stock(db, item_id=line.item_id, office_id=indent.office_id, financial_year_id=indent.financial_year_id)
         
         is_asset = False
         available_assets = []
@@ -126,7 +128,7 @@ def create_issue_form_ui(
             is_asset = True
             available_assets = db.query(Asset).filter(
                 Asset.item_id == line.item_id,
-                Asset.office_id == indent.office_id,
+                Asset.office_id == store_office_id,
                 Asset.status == AssetStatus.IN_STORE,
                 Asset.is_active == True,
             ).all()

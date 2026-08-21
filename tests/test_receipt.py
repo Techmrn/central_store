@@ -275,7 +275,7 @@ def test_invalid_section_rejected(db_session: Session, test_setup):
     s = test_setup
 
     # Create another office
-    other_office = Office(name=f"Other Office {s['uid']}", code=f"OTH-{s['uid']}", office_type=OfficeType.GCP, is_active=True)
+    other_office = Office(name=f"Other Office {s['uid']}", code=f"OTH-{s['uid']}", office_type=OfficeType.BRANCH, is_active=True)
     db_session.add(other_office)
     db_session.commit()
 

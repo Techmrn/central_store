@@ -11,6 +11,7 @@ from app.models.receipt import Receipt
 from app.models.stock_movement import StockMovement
 from app.models.stock_return import StockReturn
 from app.models.stock_transfer import StockTransfer
+from app.services.scope_service import get_stock_office_id
 from app.services.stock_service import get_item_stock, validate_stock_availability
 
 
@@ -80,18 +81,19 @@ def post_issue(
                     )
 
         # Stock availability check (Store source office is central store / indent source office)
-        store_office_id = indent.office_id
+        store_office_id = get_stock_office_id(db, indent.office_id)
         validate_stock_availability(
             db=db,
             item_id=line.item_id,
             office_id=store_office_id,
             required_qty=line.quantity,
+            financial_year_id=issue.financial_year_id,
         )
 
     try:
         # Atomic Posting Execution Phase
         for line in issue.lines:
-            store_office_id = indent.office_id
+            store_office_id = get_stock_office_id(db, indent.office_id)
 
             # 1. Create Stock Movement (OUT)
             sm = StockMovement(
@@ -317,13 +319,20 @@ def post_transfer(
     if not transfer.lines:
         raise ValueError("Transfer document contains no line items.")
 
+    from_stock_office_id = get_stock_office_id(db, transfer.from_office_id)
+    to_stock_office_id = get_stock_office_id(db, transfer.to_office_id)
+
+    if from_stock_office_id == to_stock_office_id:
+        raise ValueError("Source and destination stock stores cannot be identical.")
+
     # Validation
     for line in transfer.lines:
         validate_stock_availability(
             db=db,
             item_id=line.item_id,
-            office_id=transfer.from_office_id,
+            office_id=from_stock_office_id,
             required_qty=line.quantity,
+            financial_year_id=transfer.financial_year_id,
         )
 
     try:
@@ -332,7 +341,7 @@ def post_transfer(
             sm_out = StockMovement(
                 financial_year_id=transfer.financial_year_id,
                 item_id=line.item_id,
-                office_id=transfer.from_office_id,
+                office_id=from_stock_office_id,
                 section_id=transfer.from_section_id,
                 movement_type=MovementType.TRANSFER_OUT,
                 quantity_in=0.0,
@@ -349,7 +358,7 @@ def post_transfer(
             sm_in = StockMovement(
                 financial_year_id=transfer.financial_year_id,
                 item_id=line.item_id,
-                office_id=transfer.to_office_id,
+                office_id=to_stock_office_id,
                 section_id=transfer.to_section_id,
                 movement_type=MovementType.TRANSFER_IN,
                 quantity_in=line.quantity,
