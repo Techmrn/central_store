@@ -10,6 +10,8 @@ from app.core.db import get_db
 from app.core.templates import templates
 from app.core.constants import PAGE_SIZE
 from app.dependencies.ui_auth import get_current_user_ui
+from app.models.category import Category
+from app.models.enums import Category_Type
 from app.models.user import User
 from app.models.item import Item
 
@@ -160,7 +162,17 @@ def new_opening_stock(
     current_user: User = Depends(get_current_user_ui),
 ):
     financial_years = get_all_financial_years(db)
-    items = db.query(Item).filter(Item.is_active == True).order_by(Item.name).all()
+    items = (
+        db.query(Item)
+        .join(Category, Item.category_id == Category.id)
+        .filter(
+            Item.is_active == True,
+            Category.is_active == True,
+            Category.type == Category_Type.MATERIAL,
+        )
+        .order_by(Item.name)
+        .all()
+    )
 
     return templates.TemplateResponse(
         request=request,
@@ -205,7 +217,17 @@ def save_opening_stock(
 
     except ValueError as e:
         financial_years = get_all_financial_years(db)
-        items = db.query(Item).filter(Item.is_active == True).order_by(Item.name).all()
+        items = (
+            db.query(Item)
+            .join(Category, Item.category_id == Category.id)
+            .filter(
+                Item.is_active == True,
+                Category.is_active == True,
+                Category.type == Category_Type.MATERIAL,
+            )
+            .order_by(Item.name)
+            .all()
+        )
 
         return templates.TemplateResponse(
             request=request,
@@ -239,7 +261,17 @@ def edit_opening_stock(
         raise HTTPException(status_code=404, detail="Opening stock not found")
 
     financial_years = get_all_financial_years(db)
-    items = db.query(Item).filter(Item.is_active == True).order_by(Item.name).all()
+    items = (
+        db.query(Item)
+        .join(Category, Item.category_id == Category.id)
+        .filter(
+            Item.is_active == True,
+            Category.is_active == True,
+            Category.type == Category_Type.MATERIAL,
+        )
+        .order_by(Item.name)
+        .all()
+    )
 
     return templates.TemplateResponse(
         request=request,
@@ -299,7 +331,17 @@ def update_opening_stock_route(
 
     except ValueError as e:
         financial_years = get_all_financial_years(db)
-        items = db.query(Item).filter(Item.is_active == True).order_by(Item.name).all()
+        items = (
+            db.query(Item)
+            .join(Category, Item.category_id == Category.id)
+            .filter(
+                Item.is_active == True,
+                Category.is_active == True,
+                Category.type == Category_Type.MATERIAL,
+            )
+            .order_by(Item.name)
+            .all()
+        )
 
         return templates.TemplateResponse(
             request=request,

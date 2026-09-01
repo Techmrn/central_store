@@ -3,6 +3,8 @@ from decimal import Decimal
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
+from app.models.category import Category
+from app.models.enums import Category_Type
 from app.models.financial_year import FinancialYear
 from app.models.office import Office
 from app.models.item import Item
@@ -43,15 +45,23 @@ def create_opening_stock(
 
     item = (
         db.query(Item)
+        .join(Category, Item.category_id == Category.id)
         .filter(
             Item.id == opening_stock.item_id,
             Item.is_active == True,
+            Category.is_active == True,
         )
         .first()
     )
 
     if item is None:
         raise ValueError("Item not found.")
+
+    if item.category.type != Category_Type.MATERIAL:
+        raise ValueError(
+            "Opening stock can only be created for Material items. "
+            "Asset items must be registered through the Asset Register."
+        )
 
     duplicate = (
         db.query(OpeningStock)
@@ -164,6 +174,26 @@ def update_opening_stock(
         "item_id",
         db_opening_stock.item_id,
     )
+
+    # Validate item is MATERIAL if item_id is being changed
+    if "item_id" in data:
+        check_item = (
+            db.query(Item)
+            .join(Category, Item.category_id == Category.id)
+            .filter(
+                Item.id == item_id,
+                Item.is_active == True,
+                Category.is_active == True,
+            )
+            .first()
+        )
+        if check_item is None:
+            raise ValueError("Item not found.")
+        if check_item.category.type != Category_Type.MATERIAL:
+            raise ValueError(
+                "Opening stock can only be updated for Material items. "
+                "Asset items must be registered through the Asset Register."
+            )
 
     duplicate = (
         db.query(OpeningStock)

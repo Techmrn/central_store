@@ -1,0 +1,330 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{{ page_title }} – CSMS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/asset-register">Assets</a></li>
+        {% if is_edit %}
+        <li class="breadcrumb-item"><a href="/assets/{{ asset_id }}">{{ asset.asset_no if asset else '' }}</a></li>
+        <li class="breadcrumb-item active">Edit</li>
+        {% else %}
+        <li class="breadcrumb-item active">Register Asset</li>
+        {% endif %}
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-1">
+            <i class="bi bi-laptop text-primary me-2"></i>{{ page_title }}
+        </h2>
+        <p class="text-muted mb-0 small">
+            {% if is_edit %}
+            Update asset master and acquisition details. To change office/section or status, use the movement workflow.
+            {% else %}
+            Register a new permanent asset. All required fields are marked with <span class="text-danger">*</span>.
+            {% endif %}
+        </p>
+    </div>
+    <a href="{% if is_edit %}/assets/{{ asset_id }}{% else %}/asset-register{% endif %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Cancel
+    </a>
+</div>
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<form method="post"
+      action="{% if is_edit %}/assets/{{ asset_id }}/edit{% else %}/assets/new{% endif %}"
+      autocomplete="off">
+
+    <div class="row g-4">
+
+        <!-- ===================== BASIC IDENTITY ===================== -->
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-tag me-2"></i>Basic Identity</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+
+                        {% if not is_edit %}
+                        <!-- Asset No — only on registration -->
+                        <div class="col-md-4">
+                            <label for="asset_no" class="form-label fw-semibold">
+                                Asset No <span class="text-danger">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="asset_no"
+                                name="asset_no"
+                                class="form-control text-uppercase"
+                                placeholder="e.g. CPU-001"
+                                required
+                                maxlength="50"
+                                value="{{ form_data.asset_no if form_data else '' }}"
+                            >
+                            <small class="text-muted">Unique identifier for this asset. Cannot be changed after registration.</small>
+                        </div>
+                        {% else %}
+                        <!-- Show asset_no as read-only on edit -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Asset No</label>
+                            <input type="text" class="form-control" value="{{ asset.asset_no }}" readonly disabled>
+                            <small class="text-muted">Asset number cannot be changed after registration.</small>
+                        </div>
+                        {% endif %}
+
+                        <!-- Item -->
+                        <div class="col-md-5">
+                            <label for="item_id" class="form-label fw-semibold">
+                                Item <span class="text-danger">*</span>
+                            </label>
+                            <select id="item_id" name="item_id" class="form-select" required>
+                                <option value="">— Select Asset Item —</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}"
+                                    {% if form_data and form_data.item_id == item.id %}selected
+                                    {% elif asset and asset.item_id == item.id %}selected{% endif %}>
+                                    {{ item.code }} — {{ item.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Only items categorised as <strong>Asset</strong> are shown.</small>
+                        </div>
+
+                        <!-- Serial No -->
+                        <div class="col-md-3">
+                            <label for="serial_no" class="form-label fw-semibold">Serial No</label>
+                            <input
+                                type="text"
+                                id="serial_no"
+                                name="serial_no"
+                                class="form-control"
+                                placeholder="Optional"
+                                maxlength="100"
+                                value="{{ form_data.serial_no if form_data and form_data.serial_no else (asset.serial_no if asset and asset.serial_no else '') }}"
+                            >
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== LOCATION (NEW only) ===================== -->
+        {% if not is_edit %}
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white py-2">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-geo-alt me-2"></i>Location</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+
+                        <!-- Office -->
+                        <div class="col-md-6">
+                            <label for="office_id" class="form-label fw-semibold">
+                                Office <span class="text-danger">*</span>
+                            </label>
+                            {% if user_can_choose_office %}
+                            <select id="office_id" name="office_id" class="form-select" required
+                                    onchange="filterSections(this.value)">
+                                <option value="">— Select Office —</option>
+                                {% for office in offices %}
+                                <option value="{{ office.id }}"
+                                    {% if form_data and form_data.office_id == office.id %}selected{% endif %}>
+                                    {{ office.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input
+                                type="text"
+                                class="form-control"
+                                value="{{ current_user.office.name if current_user.office else 'Your assigned office' }}"
+                                readonly disabled>
+                            <small class="text-muted">Office is automatically set to your assigned office.</small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Section -->
+                        <div class="col-md-6">
+                            <label for="section_id" class="form-label fw-semibold">Section</label>
+                            <select id="section_id" name="section_id" class="form-select">
+                                <option value="">— None —</option>
+                                {% for sec in sections %}
+                                <option value="{{ sec.id }}"
+                                    data-office="{{ sec.office_id }}"
+                                    {% if form_data and form_data.section_id == sec.id %}selected{% endif %}>
+                                    {{ sec.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- On edit: show current location as read-only, with note -->
+        <div class="col-12">
+            <div class="card shadow-sm border-warning">
+                <div class="card-header bg-warning bg-opacity-10 py-2">
+                    <h6 class="mb-0 fw-bold text-warning"><i class="bi bi-info-circle me-2"></i>Current Location & Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Office</label>
+                            <input type="text" class="form-control" value="{{ asset.office.name if asset.office else '—' }}" readonly disabled>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Section</label>
+                            <input type="text" class="form-control" value="{{ asset.section.name if asset.section else '—' }}" readonly disabled>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Status</label>
+                            <input type="text" class="form-control" value="{{ asset.status.value }}" readonly disabled>
+                        </div>
+                    </div>
+                    <small class="text-warning fw-semibold mt-2 d-block">
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        To change the office, section, or status, use the Asset Movement workflow
+                        (accessible from the <a href="/assets/{{ asset_id }}">asset detail page</a>).
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ===================== ACQUISITION DETAILS ===================== -->
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white py-2">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-receipt me-2"></i>Acquisition Details</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+                            <label for="make" class="form-label fw-semibold">Make</label>
+                            <input type="text" id="make" name="make" class="form-control"
+                                placeholder="e.g. HP, Dell, Canon"
+                                maxlength="100"
+                                value="{{ form_data.make if form_data and form_data.make else (asset.asset_detail.make if asset and asset.asset_detail and asset.asset_detail.make else '') }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="model" class="form-label fw-semibold">Model</label>
+                            <input type="text" id="model" name="model" class="form-control"
+                                placeholder="e.g. LaserJet Pro M404n"
+                                maxlength="100"
+                                value="{{ form_data.model if form_data and form_data.model else (asset.asset_detail.model if asset and asset.asset_detail and asset.asset_detail.model else '') }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="purchase_date" class="form-label fw-semibold">Purchase Date</label>
+                            <input type="date" id="purchase_date" name="purchase_date" class="form-control"
+                                value="{{ form_data.purchase_date if form_data and form_data.purchase_date else (asset.asset_detail.purchase_date.isoformat() if asset and asset.asset_detail and asset.asset_detail.purchase_date else '') }}">
+                            <small class="text-muted">May be a past date for existing assets.</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="purchase_reference" class="form-label fw-semibold">Purchase Reference</label>
+                            <input type="text" id="purchase_reference" name="purchase_reference" class="form-control"
+                                placeholder="Bill No / PO No"
+                                maxlength="100"
+                                value="{{ form_data.purchase_reference if form_data and form_data.purchase_reference else (asset.asset_detail.purchase_reference if asset and asset.asset_detail and asset.asset_detail.purchase_reference else '') }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="purchase_value" class="form-label fw-semibold">Purchase Value (₹)</label>
+                            <input type="number" id="purchase_value" name="purchase_value" class="form-control"
+                                step="0.01" min="0"
+                                placeholder="0.00"
+                                value="{{ form_data.purchase_value if form_data and form_data.purchase_value else (asset.asset_detail.purchase_value if asset and asset.asset_detail and asset.asset_detail.purchase_value else '') }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="warranty_expiry_date" class="form-label fw-semibold">Warranty Expiry Date</label>
+                            <input type="date" id="warranty_expiry_date" name="warranty_expiry_date" class="form-control"
+                                value="{{ form_data.warranty_expiry_date if form_data and form_data.warranty_expiry_date else (asset.asset_detail.warranty_expiry_date.isoformat() if asset and asset.asset_detail and asset.asset_detail.warranty_expiry_date else '') }}">
+                        </div>
+
+                        <div class="col-12">
+                            <label for="technical_specifications" class="form-label fw-semibold">Technical Specifications</label>
+                            <textarea id="technical_specifications" name="technical_specifications"
+                                class="form-control" rows="3"
+                                placeholder="e.g. Intel Core i5, 8 GB RAM, 256 GB SSD">{{ form_data.technical_specifications if form_data and form_data.technical_specifications else (asset.asset_detail.technical_specifications if asset and asset.asset_detail and asset.asset_detail.technical_specifications else '') }}</textarea>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== REMARKS ===================== -->
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-2">
+                    <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-chat-left-text me-2"></i>Remarks</h6>
+                </div>
+                <div class="card-body">
+                    <textarea id="remarks" name="remarks" class="form-control" rows="2"
+                        placeholder="Optional remarks">{{ form_data.remarks if form_data and form_data.remarks else (asset.remarks if asset and asset.remarks else '') }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== SUBMIT ===================== -->
+        <div class="col-12 d-flex gap-2 pb-4">
+            <button type="submit" class="btn btn-primary px-5">
+                <i class="bi bi-check-circle me-1"></i>
+                {{ 'Update Asset' if is_edit else 'Register Asset' }}
+            </button>
+            <a href="{% if is_edit %}/assets/{{ asset_id }}{% else %}/asset-register{% endif %}"
+               class="btn btn-outline-secondary px-4">
+                Cancel
+            </a>
+        </div>
+
+    </div><!-- /row -->
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Filter section dropdown based on selected office
+    function filterSections(officeId) {
+        const sectionSelect = document.getElementById('section_id');
+        if (!sectionSelect) return;
+        const options = sectionSelect.querySelectorAll('option[data-office]');
+        options.forEach(opt => {
+            const belongs = !officeId || opt.dataset.office === String(officeId);
+            opt.hidden = !belongs;
+            if (!belongs && opt.selected) {
+                sectionSelect.value = '';
+            }
+        });
+    }
+
+    // Run on load to apply current office filter
+    document.addEventListener('DOMContentLoaded', () => {
+        const officeSelect = document.getElementById('office_id');
+        if (officeSelect) {
+            filterSections(officeSelect.value);
+            officeSelect.addEventListener('change', () => filterSections(officeSelect.value));
+        }
+    });
+</script>
+{% endblock %}

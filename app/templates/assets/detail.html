@@ -1,0 +1,273 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{{ page_title }} – CSMS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/asset-register">Assets</a></li>
+        <li class="breadcrumb-item active">{{ asset.asset_no }}</li>
+    </ol>
+</nav>
+
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i>{{ success }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- ============ HEADER ============ -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">
+            <i class="bi bi-laptop text-primary me-2"></i>
+            <code class="fs-4">{{ asset.asset_no }}</code>
+        </h2>
+        <p class="text-muted mb-0 small">
+            {{ asset.item.name if asset.item else '—' }}
+            {% if asset.item and asset.item.category %}
+            &nbsp;<span class="badge bg-light text-dark border">{{ asset.item.category.name }}</span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if can_edit %}
+        <a href="/assets/{{ asset.id }}/edit" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-pencil me-1"></i>Edit Details
+        </a>
+        {% endif %}
+        <a href="/asset-register" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Back to Register
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- ============ ASSET IDENTITY & LOCATION ============ -->
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white py-2">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-tag me-2"></i>Identity & Location</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless mb-0">
+                    <tbody>
+                        <tr>
+                            <th class="text-muted" style="width:40%">Asset No</th>
+                            <td><code class="fw-bold fs-6">{{ asset.asset_no }}</code></td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Item</th>
+                            <td>{{ asset.item.name if asset.item else '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Serial No</th>
+                            <td>{{ asset.serial_no or '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Office</th>
+                            <td>{{ asset.office.name if asset.office else '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Section</th>
+                            <td>{{ asset.section.name if asset.section else '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Status</th>
+                            <td>
+                                {% set sv = asset.status.value %}
+                                {% if sv == 'IN_STORE' %}
+                                <span class="badge bg-success">IN STORE</span>
+                                {% elif sv == 'ISSUED' %}
+                                <span class="badge bg-primary">ISSUED</span>
+                                {% elif sv == 'UNDER_REPAIR' %}
+                                <span class="badge bg-warning text-dark">UNDER REPAIR</span>
+                                {% elif sv == 'DAMAGED' %}
+                                <span class="badge bg-danger">DAMAGED</span>
+                                {% elif sv == 'CONDEMNED' %}
+                                <span class="badge bg-dark">CONDEMNED</span>
+                                {% elif sv == 'E_WASTE' %}
+                                <span class="badge bg-secondary">E-WASTE</span>
+                                {% elif sv == 'DISPOSED' %}
+                                <span class="badge bg-dark text-white">DISPOSED</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ sv }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if asset.remarks %}
+                        <tr>
+                            <th class="text-muted">Remarks</th>
+                            <td class="text-muted small">{{ asset.remarks }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ ACQUISITION DETAILS ============ -->
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-white py-2">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-receipt me-2"></i>Acquisition Details</h6>
+            </div>
+            <div class="card-body">
+                {% if asset.asset_detail %}
+                {% set d = asset.asset_detail %}
+                <table class="table table-sm table-borderless mb-0">
+                    <tbody>
+                        <tr>
+                            <th class="text-muted" style="width:45%">Make</th>
+                            <td>{{ d.make or '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Model</th>
+                            <td>{{ d.model or '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Purchase Date</th>
+                            <td>{{ d.purchase_date.strftime('%d %b %Y') if d.purchase_date else '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Purchase Ref.</th>
+                            <td>{{ d.purchase_reference or '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Purchase Value</th>
+                            <td>
+                                {% if d.purchase_value %}
+                                ₹ {{ "%.2f"|format(d.purchase_value) }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Warranty Expiry</th>
+                            <td>
+                                {% if d.warranty_expiry_date %}
+                                {{ d.warranty_expiry_date.strftime('%d %b %Y') }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if d.technical_specifications %}
+                        <tr>
+                            <th class="text-muted">Specifications</th>
+                            <td class="small text-muted">{{ d.technical_specifications }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>No acquisition details recorded.
+                    {% if can_edit %}
+                    <a href="/assets/{{ asset.id }}/edit">Add details</a>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MOVEMENT HISTORY ============ -->
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i>Lifetime Movement History</h6>
+                <span class="badge bg-secondary">{{ movements|length }} records</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>#</th>
+                                <th>Date</th>
+                                <th>Movement Type</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Reference</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if movements %}
+                            {% for mv in movements %}
+                            <tr>
+                                <td class="text-muted small">{{ loop.index }}</td>
+                                <td class="small">
+                                    {{ mv.movement_date.strftime('%d %b %Y') if mv.movement_date else '—' }}
+                                </td>
+                                <td>
+                                    {% set mt = mv.movement_type.value %}
+                                    {% if mt == 'RECEIPT' %}
+                                    <span class="badge bg-success">{{ mt }}</span>
+                                    {% elif mt == 'ISSUE' %}
+                                    <span class="badge bg-primary">{{ mt }}</span>
+                                    {% elif mt == 'RETURN' %}
+                                    <span class="badge bg-info text-dark">{{ mt }}</span>
+                                    {% elif mt == 'TRANSFER' %}
+                                    <span class="badge bg-warning text-dark">{{ mt }}</span>
+                                    {% elif mt == 'REPAIR' %}
+                                    <span class="badge bg-secondary">{{ mt }}</span>
+                                    {% elif mt == 'CONDEMNATION' %}
+                                    <span class="badge bg-danger">{{ mt }}</span>
+                                    {% elif mt == 'DISPOSAL' %}
+                                    <span class="badge bg-dark">{{ mt }}</span>
+                                    {% elif mt == 'UNSERVICEABLE' %}
+                                    <span class="badge bg-danger">{{ mt }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ mt }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">
+                                    {% if mv.from_office %}
+                                    {{ mv.from_office.name }}
+                                    {% if mv.from_section %} / {{ mv.from_section.name }}{% endif %}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">
+                                    {% if mv.to_office %}
+                                    {{ mv.to_office.name }}
+                                    {% if mv.to_section %} / {{ mv.to_section.name }}{% endif %}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small text-muted">{{ mv.reference_document or '—' }}</td>
+                                <td class="small text-muted">{{ mv.remarks or '—' }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    <i class="bi bi-clock-history fs-3 d-block mb-2 opacity-25"></i>
+                                    No movement records found.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /row -->
+{% endblock %}

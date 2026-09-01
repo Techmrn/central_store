@@ -88,6 +88,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if not u or not u.perm_codes or 'ASSET_CREATE' in u.perm_codes %}
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/assets/new">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Register Asset
+                </a>
+            </li>
+            {% endif %}
 
             <!-- REGISTERS -->
             <li class="nav-item mt-3">

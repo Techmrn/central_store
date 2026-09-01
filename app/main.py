@@ -51,6 +51,7 @@ from app.routers.ui import receipt as receipt_ui
 from app.routers.ui import stock_return as stock_return_ui
 from app.routers.ui import transfer as transfer_ui
 from app.routers.ui import stock as stock_ui
+from app.routers.ui import asset as asset_ui
 
 
 
@@ -84,6 +85,7 @@ app.include_router(login_history.router)
 app.include_router(opening_stock_ui.router)
 app.include_router(unserviceable_ui.router)
 app.include_router(stock_ui.router)
+app.include_router(asset_ui.router)  # Asset Registration UI
 
 # REST API routers
 app.include_router(category_router)
