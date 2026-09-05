@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
-from sqlalchemy import String, ForeignKey, Date, DateTime, Numeric, Enum as SqlEnum
+from sqlalchemy import String, ForeignKey, Date, DateTime, Numeric, Enum as SqlEnum, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
@@ -166,6 +166,9 @@ class IssueLine(BaseModel):
 
 class IssueLineAsset(BaseModel):
     __tablename__ = "issue_line_assets"
+    __table_args__ = (
+        UniqueConstraint("issue_line_id", "asset_id", name="uq_issue_line_asset"),
+    )
 
     issue_line_id: Mapped[int] = mapped_column(
         ForeignKey("issue_lines.id"),

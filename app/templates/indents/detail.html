@@ -113,8 +113,9 @@ Indent {{ indent.indent_no }} - Central Store ERP
                                 <th style="width: 25%;">Item Name &amp; Code</th>
                                 <th style="width: 10%;">Unit</th>
                                 <th style="width: 12%;" class="text-end bg-secondary bg-opacity-10">Requested Qty <br><small class="text-muted fw-normal">(Read-Only)</small></th>
-                                <th style="width: 15%;" class="text-center">Usable Stock</th>
-                                <th style="width: 15%;">Issued Qty</th>
+                                <th style="width: 14%;" class="text-center">Availability</th>
+                                <th style="width: 14%;">Fulfillment</th>
+                                <th style="width: 14%;">Issued Qty</th>
                                 <th style="width: 18%;">Remarks</th>
                             </tr>
                         </thead>
@@ -139,12 +140,44 @@ Indent {{ indent.indent_no }} - Central Store ERP
 
                                 <!-- USABLE STOCK DISPLAY -->
                                 <td class="text-center">
-                                    <span class="badge {% if line_data.usable_stock >= line.requested_quantity %}bg-success{% elif line_data.usable_stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6 px-3 py-2">
-                                        Usable: {{ line_data.usable_stock }}
-                                    </span>
-                                    <div class="small text-muted mt-1">
-                                        Physical: {{ line_data.physical_stock }} | Unserv: {{ line_data.unserviceable_stock }}
-                                    </div>
+                                    {% if line_data.is_asset %}
+                                        <span class="badge {% if line_data.usable_stock >= line.requested_quantity %}bg-success{% elif line_data.usable_stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6 px-3 py-2">
+                                            Available Assets: {{ line_data.usable_stock }}
+                                        </span>
+                                        <div class="small text-muted mt-1">Individual assets are tracked in Asset Register.</div>
+                                    {% else %}
+                                        <span class="badge {% if line_data.usable_stock >= line.requested_quantity %}bg-success{% elif line_data.usable_stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6 px-3 py-2">
+                                            Usable: {{ line_data.usable_stock }}
+                                        </span>
+                                        <div class="small text-muted mt-1">
+                                            Physical: {{ line_data.physical_stock }} | Unserv: {{ line_data.unserviceable_stock }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <!-- FULFILLMENT TYPE -->
+                                <td>
+                                    {% if indent.status != 'CLOSED' %}
+                                        <select name="fulfillment_{{ line.id }}" class="form-select form-select-sm fw-semibold">
+                                            {% if not line_data.is_asset %}
+                                            <option value="STOCK" {% if line.fulfillment_type.value == 'STOCK' %}selected{% endif %}>Stock</option>
+                                            <option value="PETTY_PURCHASE" {% if line.fulfillment_type.value == 'PETTY_PURCHASE' %}selected{% endif %}>Petty Purchase</option>
+                                            {% else %}
+                                            <option value="STOCK" selected>Asset from Register</option>
+                                            {% endif %}
+                                        </select>
+                                        {% if line_data.is_asset %}
+                                            <div class="small text-muted mt-1">Select exact Asset(s) on Issue.</div>
+                                        {% else %}
+                                            <div class="small text-muted mt-1">Petty Purchase = buy locally and issue directly.</div>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if line.fulfillment_type.value == 'PETTY_PURCHASE' %}
+                                            <span class="badge bg-warning text-dark">PETTY PURCHASE</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">STOCK</span>
+                                        {% endif %}
+                                    {% endif %}
                                 </td>
 
                                 <!-- ISSUED QUANTITY INPUT -->
@@ -185,7 +218,7 @@ Indent {{ indent.indent_no }} - Central Store ERP
 
                 {% if indent.status != 'CLOSED' %}
                 <div class="p-3 bg-light d-flex justify-content-between align-items-center border-top">
-                    <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Submit completes the physical indent atomically. Zero-issued lines create no stock movement.</span>
+                    <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Save the processing quantities, then allocate the final Issue. Asset items require selection of the exact physical assets.</span>
                     <button type="button" class="btn btn-success btn-lg shadow-sm px-5" id="btnSubmitDetail">
                         <i class="bi bi-check2-circle me-2"></i> SUBMIT
                     </button>
@@ -210,9 +243,9 @@ Indent {{ indent.indent_no }} - Central Store ERP
                     <h6 class="fw-bold mb-2">This action will:</h6>
                     <ul class="mb-0 ps-3">
                         <li>Record the final issued quantities</li>
-                        <li>Deduct stock from Central Store inventory</li>
-                        <li>Update asset movements if asset items are included</li>
-                        <li>Mark this Indent as <strong>COMPLETED / CLOSED</strong></li>
+                        <li>Continue to the Issue allocation screen</li>
+                        <li>Material lines will deduct Central Store stock when the Issue is posted</li>
+                        <li>Asset lines will update the selected physical Assets when the Issue is posted</li>
                     </ul>
                 </div>
                 <p class="text-danger fw-bold mb-0"><i class="bi bi-shield-lock me-1"></i>After submission, this Indent cannot be edited or modified.</p>

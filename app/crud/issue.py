@@ -4,13 +4,17 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.pagination import get_pagination_result
-from app.models.enums import DestinationType, IndentStatus, TransactionStatus
+from app.models.enums import DestinationType, IndentStatus, TransactionStatus, FulfillmentType, Category_Type
 from app.models.financial_year import FinancialYear
 from app.models.indent import Indent
 from app.models.issue import Issue, IssueLine, IssueLineAsset
 from app.models.office import Office
+from app.models.category import Category
+from app.models.petty_purchase import PettyPurchase
+from app.models.item import Item
 from app.models.section import Section
 from app.schemas.issue import IssueCreate, IssueUpdate
+from app.crud.petty_purchase import create_petty_purchase
 from app.services.document_number_service import generate_document_number
 
 
@@ -43,6 +47,16 @@ def create_issue(
 
     if indent.status == IndentStatus.CLOSED:
         raise ValueError("Cannot create an Issue for a closed Indent.")
+
+    # The Issue is the fulfillment document for this exact Indent. Its
+    # accounting year and administrative destination must remain aligned with
+    # the request; otherwise the audit chain becomes ambiguous.
+    if issue_in.financial_year_id != indent.financial_year_id:
+        raise ValueError("Issue financial year must match the linked Indent financial year.")
+    if issue_in.office_id != indent.office_id:
+        raise ValueError("Issue destination office must match the linked Indent office.")
+    if issue_in.section_id != indent.section_id:
+        raise ValueError("Issue destination section must match the linked Indent section.")
 
     # 2. Validate office/section
     _validate_office_and_section(db, issue_in.office_id, issue_in.section_id)
@@ -88,25 +102,71 @@ def create_issue(
         if not indent_line:
             raise ValueError(f"Item ID {line_in.item_id} is not present in the reference Indent.")
 
-        # Check: Issue quantity <= Indent issued/requested quantity
-        max_allowed = indent_line.requested_quantity
+        # Check: Issue quantity <= Indent requested quantity.
+        max_allowed = float(indent_line.requested_quantity)
         if line_in.quantity > max_allowed:
             raise ValueError(
                 f"Issue quantity ({line_in.quantity}) cannot exceed requested quantity ({max_allowed}) for item ID {line_in.item_id}."
             )
 
+        item = (
+            db.query(Item)
+            .join(Category, Item.category_id == Category.id)
+            .filter(
+                Item.id == line_in.item_id,
+                Item.is_active == True,
+                Category.is_active == True,
+            )
+            .first()
+        )
+        if not item:
+            raise ValueError(f"Item ID {line_in.item_id} not found.")
+
+        is_asset = item.category.type == Category_Type.ASSET
+        fulfillment = indent_line.fulfillment_type
+
+        if is_asset and fulfillment == FulfillmentType.PETTY_PURCHASE:
+            raise ValueError(
+                f"Asset item '{item.name}' cannot currently be fulfilled through Petty Purchase."
+            )
+
+        if fulfillment == FulfillmentType.STOCK and line_in.petty_purchase is not None:
+            raise ValueError(
+                f"Petty purchase details were supplied for stock line '{item.name}'."
+            )
+
+        if fulfillment == FulfillmentType.PETTY_PURCHASE and line_in.petty_purchase is None:
+            raise ValueError(
+                f"Petty Purchase details are required for Indent line '{item.name}'."
+            )
+
         db_line = IssueLine(
             item_id=line_in.item_id,
-            unit_id=line_in.unit_id,
+            unit_id=line_in.unit_id or item.unit_id,
             quantity=line_in.quantity,
             remarks=line_in.remarks.strip() if line_in.remarks else None,
         )
 
         if line_in.asset_ids:
+            if not is_asset:
+                raise ValueError(f"Asset selection is not valid for material item '{item.name}'.")
+            if len(line_in.asset_ids) != len(set(line_in.asset_ids)):
+                raise ValueError(f"Asset selected more than once for item '{item.name}'.")
             for aid in line_in.asset_ids:
                 db_line.assets.append(IssueLineAsset(asset_id=aid))
 
         db_issue.lines.append(db_line)
+
+        if fulfillment == FulfillmentType.PETTY_PURCHASE:
+            create_petty_purchase(
+                db=db,
+                indent_id=indent.id,
+                indent_line_id=indent_line.id,
+                item_id=item.id,
+                quantity=float(line_in.quantity),
+                purchase=line_in.petty_purchase,
+                user_id=user_id,
+            )
 
     db.add(db_issue)
     try:
@@ -187,6 +247,8 @@ def update_issue(
     if issue_in.office_id is not None or issue_in.section_id is not None:
         target_off = issue_in.office_id if issue_in.office_id is not None else db_issue.office_id
         target_sec = issue_in.section_id if issue_in.section_id is not None else db_issue.section_id
+        if target_off != db_issue.indent.office_id or target_sec != db_issue.indent.section_id:
+            raise ValueError("Issue destination must match the linked Indent destination.")
         _validate_office_and_section(db, target_off, target_sec)
         db_issue.office_id = target_off
         db_issue.section_id = target_sec
@@ -204,23 +266,46 @@ def update_issue(
         db_issue.remarks = issue_in.remarks.strip() if issue_in.remarks else None
 
     if issue_in.lines is not None:
+        # Keep the one-to-one petty purchase record for each IndentLine.
+        # Active records are updated/reused when the line remains a petty purchase;
+        # records for lines removed/switching back to STOCK are deactivated below.
         db_issue.lines.clear()
         indent = db_issue.indent
         indent_lines_by_item = {l.item_id: l for l in indent.lines if l.is_active}
+        petty_line_ids_in_update: set[int] = set()
 
         for line_in in issue_in.lines:
             indent_line = indent_lines_by_item.get(line_in.item_id)
             if not indent_line:
                 raise ValueError(f"Item ID {line_in.item_id} is not present in reference Indent.")
 
-            if line_in.quantity > indent_line.requested_quantity:
+            if line_in.quantity > float(indent_line.requested_quantity):
                 raise ValueError(
                     f"Issue quantity ({line_in.quantity}) cannot exceed requested quantity ({indent_line.requested_quantity}) for item ID {line_in.item_id}."
                 )
 
+            item = db.query(Item).join(Category, Item.category_id == Category.id).filter(
+                Item.id == line_in.item_id, Item.is_active == True, Category.is_active == True
+            ).first()
+            if not item:
+                raise ValueError(f"Item ID {line_in.item_id} not found.")
+
+            is_asset = item.category.type == Category_Type.ASSET
+            fulfillment = indent_line.fulfillment_type
+            if is_asset and fulfillment == FulfillmentType.PETTY_PURCHASE:
+                raise ValueError(f"Asset item '{item.name}' cannot currently be fulfilled through Petty Purchase.")
+            if fulfillment == FulfillmentType.STOCK and line_in.petty_purchase is not None:
+                raise ValueError(f"Petty purchase details were supplied for stock line '{item.name}'.")
+            if fulfillment == FulfillmentType.PETTY_PURCHASE and line_in.petty_purchase is None:
+                raise ValueError(f"Petty Purchase details are required for Indent line '{item.name}'.")
+            if line_in.asset_ids and not is_asset:
+                raise ValueError(f"Asset selection is not valid for material item '{item.name}'.")
+            if line_in.asset_ids and len(line_in.asset_ids) != len(set(line_in.asset_ids)):
+                raise ValueError(f"Asset selected more than once for item '{item.name}'.")
+
             db_line = IssueLine(
                 item_id=line_in.item_id,
-                unit_id=line_in.unit_id,
+                unit_id=line_in.unit_id or item.unit_id,
                 quantity=line_in.quantity,
                 remarks=line_in.remarks.strip() if line_in.remarks else None,
             )
@@ -229,6 +314,25 @@ def update_issue(
                     db_line.assets.append(IssueLineAsset(asset_id=aid))
 
             db_issue.lines.append(db_line)
+
+            if fulfillment == FulfillmentType.PETTY_PURCHASE:
+                petty_line_ids_in_update.add(indent_line.id)
+                create_petty_purchase(
+                    db=db, indent_id=indent.id, indent_line_id=indent_line.id,
+                    item_id=item.id, quantity=float(line_in.quantity),
+                    purchase=line_in.petty_purchase, user_id=db_issue.created_by_id,
+                )
+
+        # Deactivate draft petty purchases for IndentLines no longer fulfilled
+        # through petty purchase. Do not touch posted records.
+        stale_petty_records = db.query(PettyPurchase).filter(
+            PettyPurchase.indent_id == db_issue.indent_id,
+            PettyPurchase.status != TransactionStatus.POSTED,
+            PettyPurchase.is_active == True,
+        ).all()
+        for record in stale_petty_records:
+            if record.indent_line_id not in petty_line_ids_in_update:
+                record.is_active = False
 
     try:
         db.commit()

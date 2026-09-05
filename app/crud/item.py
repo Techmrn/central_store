@@ -7,8 +7,44 @@ from typing import Optional
 from app.models.item import Item
 from app.models.category import Category
 from app.models.unit import Unit
+from app.models.enums import Category_Type
 from app.schemas.item import ItemCreate, ItemUpdate
 from app.core.constants import PAGE_SIZE
+
+
+def _item_has_operational_history(db: Session, item_id: int) -> bool:
+    """Return True when the Item is referenced by any operational/history table."""
+    from app.models.asset import Asset
+    from app.models.indent_line import IndentLine
+    from app.models.issue import IssueLine
+    from app.models.opening_stock import OpeningStock
+    from app.models.receipt import ReceiptLine
+    from app.models.stock_movement import StockMovement
+    from app.models.stock_return import StockReturnLine
+    from app.models.stock_transfer import StockTransferLine
+
+    checks = (
+        db.query(Asset.id).filter(Asset.item_id == item_id).first(),
+        db.query(IndentLine.id).filter(IndentLine.item_id == item_id).first(),
+        db.query(IssueLine.id).filter(IssueLine.item_id == item_id).first(),
+        db.query(OpeningStock.id).filter(OpeningStock.item_id == item_id).first(),
+        db.query(ReceiptLine.id).filter(ReceiptLine.item_id == item_id).first(),
+        db.query(StockMovement.id).filter(StockMovement.item_id == item_id).first(),
+        db.query(StockReturnLine.id).filter(StockReturnLine.item_id == item_id).first(),
+        db.query(StockTransferLine.id).filter(StockTransferLine.item_id == item_id).first(),
+    )
+    return any(row is not None for row in checks)
+
+
+def _category_type(db: Session, category_id: int) -> Category_Type:
+    category = (
+        db.query(Category)
+        .filter(Category.id == category_id, Category.is_active == True)
+        .first()
+    )
+    if not category:
+        raise ValueError("Category not found.")
+    return category.type
 
 
 def create_item(db: Session, item: ItemCreate):
@@ -40,6 +76,9 @@ def create_item(db: Session, item: ItemCreate):
 
     if not category:
         raise ValueError("Category not found.")
+
+    if getattr(item, "is_temporary", False) and category.type != Category_Type.MATERIAL:
+        raise ValueError("Temporary items are currently supported only for MATERIAL categories.")
 
     unit = (
         db.query(Unit)
@@ -94,6 +133,8 @@ def create_temporary_item(
     category = db.query(Category).filter(Category.id == category_id, Category.is_active == True).first()
     if not category:
         raise ValueError("Category not found.")
+    if category.type != Category_Type.MATERIAL:
+        raise ValueError("Temporary / Local Purchase items must belong to a MATERIAL category.")
 
     unit = db.query(Unit).filter(Unit.id == unit_id, Unit.is_active == True).first()
     if not unit:
@@ -180,6 +221,13 @@ def promote_temporary_item(
         cat = db.query(Category).filter(Category.id == category_id, Category.is_active == True).first()
         if not cat:
             raise ValueError("Category not found.")
+        if cat.id != item.category_id and _item_has_operational_history(db, item.id):
+            raise ValueError(
+                "Item category cannot be changed after the Item has operational history. "
+                "Create a new Item instead."
+            )
+        if cat.type == Category_Type.ASSET and item.is_temporary:
+            raise ValueError("A temporary Item cannot be promoted to an ASSET category.")
         item.category_id = category_id
 
     if unit_id is not None:
@@ -314,6 +362,16 @@ def update_item(
         )
         if not category:
             raise ValueError("Category not found.")
+
+        if category.id != db_item.category_id and _item_has_operational_history(db, db_item.id):
+            raise ValueError(
+                "Item category cannot be changed after the Item has operational history. "
+                "Create a new Item instead."
+            )
+        if category.type == Category_Type.ASSET and (
+            (item.is_temporary if item.is_temporary is not None else db_item.is_temporary)
+        ):
+            raise ValueError("A temporary Item cannot belong to an ASSET category.")
         db_item.category_id = item.category_id
 
     if item.unit_id is not None:

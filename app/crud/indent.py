@@ -4,11 +4,13 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.pagination import get_pagination_result
-from app.models.enums import IndentStatus, RequestSource
+from app.models.enums import IndentStatus, RequestSource, FulfillmentType, Category_Type, TransactionStatus
 from app.models.financial_year import FinancialYear
 from app.models.indent import Indent
 from app.models.indent_line import IndentLine
 from app.models.item import Item
+from app.models.category import Category
+from app.models.petty_purchase import PettyPurchase
 from app.models.office import Office
 from app.models.section import Section
 from app.schemas.indent import (
@@ -84,14 +86,21 @@ def _validate_items_and_quantities(db: Session, lines: list[IndentLineCreate]):
 
         item = (
             db.query(Item)
+            .join(Category, Item.category_id == Category.id)
             .filter(
                 Item.id == l.item_id,
                 Item.is_active == True,
+                Category.is_active == True,
             )
             .first()
         )
         if not item:
             raise ValueError(f"Item ID {l.item_id} not found.")
+
+        if l.fulfillment_type == FulfillmentType.PETTY_PURCHASE and item.category.type != Category_Type.MATERIAL:
+            raise ValueError(
+                f"Asset item '{item.name}' cannot be fulfilled through Petty Purchase."
+            )
 
 
 def create_indent(
@@ -143,6 +152,7 @@ def create_indent(
                 item_id=line_in.item_id,
                 requested_quantity=line_in.requested_quantity,
                 issued_quantity=issued_qty,
+                fulfillment_type=line_in.fulfillment_type,
                 remarks=line_in.remarks.strip() if line_in.remarks else None,
             )
         )
@@ -325,6 +335,42 @@ def update_indent(
                         f"Issued quantity ({new_issued}) cannot exceed requested quantity ({db_line.requested_quantity}) for item ID {db_line.item_id}."
                     )
                 db_line.issued_quantity = new_issued
+
+            if line_update.fulfillment_type is not None:
+                new_fulfillment = line_update.fulfillment_type
+
+                # Fulfillment is line-level business behavior. Petty Purchase
+                # is supported only for MATERIAL items.
+                item = (
+                    db.query(Item)
+                    .join(Category, Item.category_id == Category.id)
+                    .filter(
+                        Item.id == db_line.item_id,
+                        Item.is_active == True,
+                        Category.is_active == True,
+                    )
+                    .first()
+                )
+                if not item:
+                    raise ValueError(f"Item ID {db_line.item_id} not found.")
+                if new_fulfillment == FulfillmentType.PETTY_PURCHASE and item.category.type != Category_Type.MATERIAL:
+                    raise ValueError(
+                        f"Asset item '{item.name}' cannot be fulfilled through Petty Purchase."
+                    )
+
+                # A draft petty purchase belongs one-to-one to the IndentLine.
+                # When switching back to STOCK, hide the pending purchase; when
+                # switched to PETTY_PURCHASE again, the same record can be reused.
+                existing_petty = db.query(PettyPurchase).filter(
+                    PettyPurchase.indent_line_id == db_line.id,
+                    PettyPurchase.status != TransactionStatus.POSTED,
+                ).first()
+                if new_fulfillment == FulfillmentType.STOCK and existing_petty:
+                    existing_petty.is_active = False
+                elif new_fulfillment == FulfillmentType.PETTY_PURCHASE and existing_petty:
+                    existing_petty.is_active = True
+
+                db_line.fulfillment_type = new_fulfillment
 
             if line_update.remarks is not None:
                 db_line.remarks = line_update.remarks.strip() if line_update.remarks else None

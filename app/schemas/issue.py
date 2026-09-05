@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import DestinationType, TransactionStatus
+from app.schemas.petty_purchase import PettyPurchaseCreate
 
 
 class IssueLineAssetCreate(BaseModel):
@@ -23,6 +24,7 @@ class IssueLineCreate(BaseModel):
     quantity: float = Field(..., gt=0)
     remarks: Optional[str] = None
     asset_ids: Optional[list[int]] = None
+    petty_purchase: Optional[PettyPurchaseCreate] = None
 
 
 class IssueLineRead(BaseModel):

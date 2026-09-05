@@ -143,3 +143,37 @@ class ReceiptLine(BaseModel):
     receipt: Mapped["Receipt"] = relationship("Receipt", back_populates="lines")
     item: Mapped["Item"] = relationship("Item")
     unit: Mapped[Optional["Unit"]] = relationship("Unit")
+
+    asset_entries: Mapped[list["ReceiptLineAsset"]] = relationship(
+        "ReceiptLineAsset",
+        back_populates="receipt_line",
+        cascade="all, delete-orphan",
+    )
+
+
+class ReceiptLineAsset(BaseModel):
+    """Draft receipt-time details for one physical Asset to be created on posting."""
+
+    __tablename__ = "receipt_line_assets"
+
+    receipt_line_id: Mapped[int] = mapped_column(
+        ForeignKey("receipt_lines.id"),
+        nullable=False,
+        index=True,
+    )
+
+    asset_no: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    serial_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    make: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    purchase_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    purchase_reference: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    purchase_value: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    warranty_expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    technical_specifications: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    remarks: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    receipt_line: Mapped["ReceiptLine"] = relationship(
+        "ReceiptLine",
+        back_populates="asset_entries",
+    )

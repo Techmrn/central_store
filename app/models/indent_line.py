@@ -1,12 +1,14 @@
 from typing import TYPE_CHECKING, Optional
-from sqlalchemy import String, ForeignKey, Numeric, UniqueConstraint
+from sqlalchemy import String, ForeignKey, Numeric, UniqueConstraint, Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
+from app.models.enums import FulfillmentType
 
 if TYPE_CHECKING:
     from app.models.indent import Indent
     from app.models.item import Item
+    from app.models.petty_purchase import PettyPurchase
 
 
 class IndentLine(BaseModel):
@@ -42,6 +44,13 @@ class IndentLine(BaseModel):
         default=0.0,
     )
 
+    fulfillment_type: Mapped[FulfillmentType] = mapped_column(
+        SqlEnum(FulfillmentType),
+        nullable=False,
+        default=FulfillmentType.STOCK,
+        index=True,
+    )
+
     remarks: Mapped[Optional[str]] = mapped_column(
         String(255),
         nullable=True,
@@ -54,4 +63,10 @@ class IndentLine(BaseModel):
 
     item: Mapped["Item"] = relationship(
         "Item",
+    )
+
+    petty_purchase: Mapped[Optional["PettyPurchase"]] = relationship(
+        "PettyPurchase",
+        back_populates="indent_line",
+        uselist=False,
     )

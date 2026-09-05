@@ -93,7 +93,8 @@ Create Issue Document - Central Store ERP
                                 <th style="width: 25%;">Item Name &amp; Code</th>
                                 <th style="width: 10%;">Unit</th>
                                 <th style="width: 12%;" class="text-end bg-secondary bg-opacity-10">Requested Qty</th>
-                                <th style="width: 12%;" class="text-center">Usable Stock</th>
+                                <th style="width: 12%;" class="text-center">Availability</th>
+                                <th style="width: 14%;">Fulfillment</th>
                                 <th style="width: 15%;">Issue Qty <span class="text-danger">*</span></th>
                                 <th style="width: 21%;">Asset Allocation / Remarks</th>
                             </tr>
@@ -113,9 +114,27 @@ Create Issue Document - Central Store ERP
                                 <td>{{ line.item.unit.symbol if line.item.unit else '-' }}</td>
                                 <td class="text-end fw-bold bg-secondary bg-opacity-10">{{ line.requested_quantity }}</td>
                                 <td class="text-center">
-                                    <span class="badge {% if item_data.usable_stock >= line.requested_quantity %}bg-success{% elif item_data.usable_stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6 px-2 py-1">
-                                        Usable: {{ item_data.usable_stock }}
-                                    </span>
+                                    {% if item_data.is_petty %}
+                                        <span class="badge bg-warning text-dark fs-6 px-2 py-1">Direct Purchase</span>
+                                    {% else %}
+                                        <span class="badge {% if item_data.usable_stock >= line.requested_quantity %}bg-success{% elif item_data.usable_stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6 px-2 py-1">
+                                            {% if item_data.is_asset %}
+                                                Available Assets: {{ item_data.usable_stock }}
+                                            {% else %}
+                                                Usable Stock: {{ item_data.usable_stock }}
+                                            {% endif %}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item_data.is_petty %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">PETTY PURCHASE</span>
+                                        <div class="small text-muted mt-1">Purchase specifically for this Indent and issue directly.</div>
+                                    {% elif item_data.is_asset %}
+                                        <span class="badge bg-info text-dark">ASSET FROM REGISTER</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">STOCK</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <input type="number" 
@@ -129,10 +148,37 @@ Create Issue Document - Central Store ERP
                                            data-requested="{{ line.requested_quantity }}"
                                            data-usable="{{ item_data.usable_stock }}"
                                            data-is-asset="{% if item_data.is_asset %}true{% else %}false{% endif %}"
+                                           data-is-petty="{% if item_data.is_petty %}true{% else %}false{% endif %}"
                                            value="{{ item_data.default_qty }}">
                                 </td>
                                 <td>
-                                    {% if item_data.is_asset %}
+                                    {% if item_data.is_petty %}
+                                        <div class="border rounded p-2 bg-warning-subtle mb-2">
+                                            <div class="small fw-bold text-warning-emphasis mb-2"><i class="bi bi-bag-check me-1"></i>Petty Purchase Details</div>
+                                            <div class="row g-2">
+                                                <div class="col-md-6">
+                                                    <label class="form-label small mb-1">Purchase Date</label>
+                                                    <input type="date" name="pp_date_{{ line.id }}" class="form-control form-control-sm" value="{{ today_date }}" required>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small mb-1">Supplier / Shop</label>
+                                                    <input type="text" name="pp_supplier_{{ line.id }}" class="form-control form-control-sm" placeholder="Optional">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small mb-1">Bill / Ref No</label>
+                                                    <input type="text" name="pp_ref_{{ line.id }}" class="form-control form-control-sm" placeholder="Optional">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small mb-1">Unit Rate (₹)</label>
+                                                    <input type="number" step="0.01" min="0" name="pp_rate_{{ line.id }}" class="form-control form-control-sm" placeholder="Optional">
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small mb-1">Purchase Remarks</label>
+                                                    <input type="text" name="pp_remarks_{{ line.id }}" class="form-control form-control-sm" placeholder="Optional purchase details">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% elif item_data.is_asset %}
                                         <div class="mb-2">
                                             <button type="button" class="btn btn-sm btn-outline-info w-100 text-start" data-bs-toggle="modal" data-bs-target="#assetModal_{{ line.id }}">
                                                 <i class="bi bi-ui-checks me-1"></i> Select Assets (<span id="assetCount_{{ line.id }}">0</span> selected)

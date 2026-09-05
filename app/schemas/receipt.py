@@ -5,12 +5,26 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.enums import TransactionStatus
 
 
+class ReceiptAssetEntryCreate(BaseModel):
+    asset_no: Optional[str] = None
+    serial_no: Optional[str] = None
+    make: Optional[str] = None
+    model: Optional[str] = None
+    purchase_date: Optional[date] = None
+    purchase_reference: Optional[str] = None
+    purchase_value: Optional[float] = Field(default=None, ge=0)
+    warranty_expiry_date: Optional[date] = None
+    technical_specifications: Optional[str] = None
+    remarks: Optional[str] = None
+
+
 class ReceiptLineCreate(BaseModel):
     item_id: int
     unit_id: Optional[int] = None
     quantity: float = Field(..., gt=0)
     unit_price: Optional[float] = Field(None, ge=0)
     remarks: Optional[str] = None
+    asset_entries: list[ReceiptAssetEntryCreate] = []
 
 
 class ReceiptLineRead(BaseModel):
@@ -23,6 +37,7 @@ class ReceiptLineRead(BaseModel):
     quantity: float
     unit_price: Optional[float] = None
     remarks: Optional[str] = None
+    asset_entries: list[ReceiptAssetEntryCreate] = []
 
 
 class ReceiptCreate(BaseModel):

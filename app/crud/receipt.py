@@ -4,11 +4,12 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.pagination import get_pagination_result
-from app.models.enums import TransactionStatus
+from app.models.enums import TransactionStatus, Category_Type
 from app.models.financial_year import FinancialYear
 from app.models.item import Item
+from app.models.category import Category
 from app.models.office import Office
-from app.models.receipt import Receipt, ReceiptLine
+from app.models.receipt import Receipt, ReceiptLine, ReceiptLineAsset
 from app.models.section import Section
 from app.schemas.receipt import ReceiptCreate, ReceiptUpdate
 from app.services.document_number_service import generate_document_number
@@ -71,21 +72,58 @@ def create_receipt(
         if line_in.unit_price is not None and line_in.unit_price < 0:
             raise ValueError("Line item unit price cannot be negative.")
 
-        item = db.query(Item).filter(Item.id == line_in.item_id, Item.is_active == True).first()
+        item = (
+            db.query(Item)
+            .join(Category, Item.category_id == Category.id)
+            .filter(
+                Item.id == line_in.item_id,
+                Item.is_active == True,
+                Category.is_active == True,
+            )
+            .first()
+        )
         if not item:
             raise ValueError(f"Item ID {line_in.item_id} not found.")
 
-        unit_id = line_in.unit_id or item.unit_id
+        is_asset = item.category.type == Category_Type.ASSET
+        if is_asset:
+            qty = float(line_in.quantity)
+            if not qty.is_integer():
+                raise ValueError(f"Asset item '{item.name}' must have a whole-number receipt quantity.")
+            expected = int(qty)
+            if len(line_in.asset_entries) != expected:
+                raise ValueError(
+                    f"Asset item '{item.name}' requires exactly {expected} asset detail entries; "
+                    f"received {len(line_in.asset_entries)}."
+                )
+        elif line_in.asset_entries:
+            raise ValueError(f"Asset details are not valid for MATERIAL item '{item.name}'.")
 
-        db_receipt.lines.append(
-            ReceiptLine(
-                item_id=line_in.item_id,
-                unit_id=unit_id,
-                quantity=line_in.quantity,
-                unit_price=line_in.unit_price,
-                remarks=line_in.remarks.strip() if line_in.remarks else None,
-            )
+        unit_id = line_in.unit_id or item.unit_id
+        db_line = ReceiptLine(
+            item_id=line_in.item_id,
+            unit_id=unit_id,
+            quantity=line_in.quantity,
+            unit_price=line_in.unit_price,
+            remarks=line_in.remarks.strip() if line_in.remarks else None,
         )
+        if is_asset:
+            for entry in line_in.asset_entries:
+                db_line.asset_entries.append(
+                    ReceiptLineAsset(
+                        asset_no=entry.asset_no.strip().upper() if entry.asset_no and entry.asset_no.strip() else None,
+                        serial_no=entry.serial_no.strip() if entry.serial_no and entry.serial_no.strip() else None,
+                        make=entry.make.strip() if entry.make else None,
+                        model=entry.model.strip() if entry.model else None,
+                        purchase_date=entry.purchase_date or receipt_date,
+                        purchase_reference=entry.purchase_reference.strip() if entry.purchase_reference else db_receipt.reference_no,
+                        purchase_value=entry.purchase_value if entry.purchase_value is not None else line_in.unit_price,
+                        warranty_expiry_date=entry.warranty_expiry_date,
+                        technical_specifications=entry.technical_specifications.strip() if entry.technical_specifications else None,
+                        remarks=entry.remarks.strip() if entry.remarks else None,
+                    )
+                )
+        db_receipt.lines.append(db_line)
 
     db.add(db_receipt)
     try:
@@ -104,6 +142,7 @@ def get_receipt_by_id(db: Session, receipt_id: int) -> Optional[Receipt]:
             joinedload(Receipt.lines).joinedload(ReceiptLine.item).joinedload(Item.unit),
             joinedload(Receipt.lines).joinedload(ReceiptLine.item).joinedload(Item.category),
             joinedload(Receipt.lines).joinedload(ReceiptLine.unit),
+            joinedload(Receipt.lines).joinedload(ReceiptLine.asset_entries),
             joinedload(Receipt.office),
             joinedload(Receipt.section),
             joinedload(Receipt.financial_year),
@@ -136,6 +175,7 @@ def get_all_receipts(
             joinedload(Receipt.created_by),
             joinedload(Receipt.posted_by),
             joinedload(Receipt.lines).joinedload(ReceiptLine.item),
+            joinedload(Receipt.lines).joinedload(ReceiptLine.asset_entries),
         )
         .join(Office, Receipt.office_id == Office.id)
         .join(FinancialYear, Receipt.financial_year_id == FinancialYear.id)
@@ -229,21 +269,58 @@ def update_receipt(
             if line_in.unit_price is not None and line_in.unit_price < 0:
                 raise ValueError("Line item unit price cannot be negative.")
 
-            item = db.query(Item).filter(Item.id == line_in.item_id, Item.is_active == True).first()
+            item = (
+                db.query(Item)
+                .join(Category, Item.category_id == Category.id)
+                .filter(
+                    Item.id == line_in.item_id,
+                    Item.is_active == True,
+                    Category.is_active == True,
+                )
+                .first()
+            )
             if not item:
                 raise ValueError(f"Item ID {line_in.item_id} not found.")
 
-            unit_id = line_in.unit_id or item.unit_id
+            is_asset = item.category.type == Category_Type.ASSET
+            if is_asset:
+                qty = float(line_in.quantity)
+                if not qty.is_integer():
+                    raise ValueError(f"Asset item '{item.name}' must have a whole-number receipt quantity.")
+                expected = int(qty)
+                if len(line_in.asset_entries) != expected:
+                    raise ValueError(
+                        f"Asset item '{item.name}' requires exactly {expected} asset detail entries; "
+                        f"received {len(line_in.asset_entries)}."
+                    )
+            elif line_in.asset_entries:
+                raise ValueError(f"Asset details are not valid for MATERIAL item '{item.name}'.")
 
-            db_receipt.lines.append(
-                ReceiptLine(
-                    item_id=line_in.item_id,
-                    unit_id=unit_id,
-                    quantity=line_in.quantity,
-                    unit_price=line_in.unit_price,
-                    remarks=line_in.remarks.strip() if line_in.remarks else None,
-                )
+            unit_id = line_in.unit_id or item.unit_id
+            db_line = ReceiptLine(
+                item_id=line_in.item_id,
+                unit_id=unit_id,
+                quantity=line_in.quantity,
+                unit_price=line_in.unit_price,
+                remarks=line_in.remarks.strip() if line_in.remarks else None,
             )
+            if is_asset:
+                for entry in line_in.asset_entries:
+                    db_line.asset_entries.append(
+                        ReceiptLineAsset(
+                            asset_no=entry.asset_no.strip().upper() if entry.asset_no and entry.asset_no.strip() else None,
+                            serial_no=entry.serial_no.strip() if entry.serial_no and entry.serial_no.strip() else None,
+                            make=entry.make.strip() if entry.make else None,
+                            model=entry.model.strip() if entry.model else None,
+                            purchase_date=entry.purchase_date or db_receipt.receipt_date,
+                            purchase_reference=entry.purchase_reference.strip() if entry.purchase_reference else db_receipt.reference_no,
+                            purchase_value=entry.purchase_value if entry.purchase_value is not None else line_in.unit_price,
+                            warranty_expiry_date=entry.warranty_expiry_date,
+                            technical_specifications=entry.technical_specifications.strip() if entry.technical_specifications else None,
+                            remarks=entry.remarks.strip() if entry.remarks else None,
+                        )
+                    )
+            db_receipt.lines.append(db_line)
 
     try:
         db.commit()

@@ -47,10 +47,10 @@ Issue Review - {{ issue.issue_no }} - Central Store ERP
         <div>
             {% if issue.status != 'POSTED' %}
                 <button type="button" class="btn btn-success btn-lg shadow-sm" data-bs-toggle="modal" data-bs-target="#postConfirmationModal">
-                    <i class="bi bi-check-lg me-1"></i> POST ISSUE &amp; DEDUCT STOCK
+                    <i class="bi bi-check-lg me-1"></i> POST ISSUE
                 </button>
             {% else %}
-                <span class="badge bg-success fs-6 p-2"><i class="bi bi-check-all me-1"></i> Transaction Posted to Stock Ledger</span>
+                <span class="badge bg-success fs-6 p-2"><i class="bi bi-check-all me-1"></i> Transaction Posted</span>
             {% endif %}
         </div>
     </div>
@@ -170,7 +170,7 @@ Issue Review - {{ issue.issue_no }} - Central Store ERP
                             <th>Item Name &amp; Code</th>
                             <th>Unit</th>
                             <th class="text-end fw-bold">Issued Quantity</th>
-                            <th>Allocated Assets / Line Remarks</th>
+                            <th>Fulfillment / Assets / Remarks</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -184,7 +184,17 @@ Issue Review - {{ issue.issue_no }} - Central Store ERP
                             <td>{{ line.unit.symbol if line.unit else '-' }}</td>
                             <td class="text-end fs-5 fw-bold text-success">{{ line.quantity }}</td>
                             <td>
-                                {% if line.assets %}
+                                {% set il = (issue.indent.lines | selectattr('item_id', 'equalto', line.item_id) | list | first) if issue.indent else none %}
+                                {% if il and il.fulfillment_type.value == 'PETTY_PURCHASE' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Direct Petty Purchase</span>
+                                    {% if il.petty_purchase %}
+                                        <div class="small text-muted mt-1">
+                                            {{ il.petty_purchase.supplier_name or 'Local purchase' }}
+                                            {% if il.petty_purchase.reference_no %} · {{ il.petty_purchase.reference_no }}{% endif %}
+                                            {% if il.petty_purchase.unit_price is not none %} · ₹ {{ "{:,.2f}".format(il.petty_purchase.unit_price) }} / unit{% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% elif line.assets %}
                                     <div class="fw-bold text-primary mb-1"><i class="bi bi-laptop me-1"></i>Allocated Physical Assets:</div>
                                     <ul class="mb-0 ps-3 small font-monospace">
                                         {% for la in line.assets %}
@@ -192,7 +202,10 @@ Issue Review - {{ issue.issue_no }} - Central Store ERP
                                         {% endfor %}
                                     </ul>
                                 {% else %}
-                                    <span>{{ line.remarks or '-' }}</span>
+                                    <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">Stock Issue</span>
+                                {% endif %}
+                                {% if line.remarks %}
+                                    <div class="small text-muted fst-italic mt-1">{{ line.remarks }}</div>
                                 {% endif %}
                             </td>
                         </tr>
@@ -213,7 +226,7 @@ Issue Review - {{ issue.issue_no }} - Central Store ERP
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="fw-bold text-dark fs-5 mb-2">This will post the Issue and deduct stock.</p>
+                <p class="fw-bold text-dark fs-5 mb-2">This will post the Issue and apply the correct line-level update (Material stock, Asset allocation, or Petty Purchase).</p>
                 <p class="text-secondary mb-3">Posted stock transactions become authoritative and cannot be freely edited or deleted.</p>
                 <div class="alert alert-warning py-2 small mb-0">
                     <i class="bi bi-info-circle-fill me-1"></i> The linked Indent will be automatically set to <strong>CLOSED</strong>.

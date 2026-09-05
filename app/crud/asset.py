@@ -75,6 +75,39 @@ def _validate_office_and_section(
             raise ValueError("The selected section does not belong to the specified office.")
 
 
+def generate_asset_number(db: Session, item_id: int) -> str:
+    """Generate a readable permanent Asset Number from the Item category code."""
+    item = (
+        db.query(Item)
+        .join(Category, Item.category_id == Category.id)
+        .filter(Item.id == item_id)
+        .first()
+    )
+    if not item or not item.category:
+        raise ValueError("Cannot generate Asset number without a valid Item category.")
+
+    prefix = f"AST-{item.category.code.strip().upper()}"
+    latest = (
+        db.query(Asset.asset_no)
+        .filter(Asset.asset_no.ilike(f"{prefix}-%"))
+        .order_by(Asset.asset_no.desc())
+        .first()
+    )
+    seq = 1
+    if latest and latest[0]:
+        try:
+            seq = int(str(latest[0]).rsplit("-", 1)[1]) + 1
+        except (ValueError, IndexError):
+            seq = 1
+
+    while True:
+        candidate = f"{prefix}-{seq:06d}"
+        exists = db.query(Asset.id).filter(Asset.asset_no == candidate).first()
+        if not exists:
+            return candidate
+        seq += 1
+
+
 def create_asset(db: Session, asset_in: AssetCreate) -> Asset:
     asset_no = asset_in.asset_no.strip().upper()
     serial_no = (

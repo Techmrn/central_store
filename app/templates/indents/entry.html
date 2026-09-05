@@ -31,7 +31,7 @@ Record Physical Indent - Central Store ERP
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="mb-1 text-dark fw-bold"><i class="bi bi-file-earmark-plus text-primary me-2"></i>Record Physical Indent</h2>
-            <p class="text-secondary mb-0">Record and process a printed physical Indent document received at Central Store.</p>
+            <p class="text-secondary mb-0">Record a physical Indent request. Material, Asset and Petty Purchase fulfillment are decided during processing.</p>
         </div>
         <a href="/indents" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back to Register</a>
     </div>
@@ -126,7 +126,7 @@ Record Physical Indent - Central Store ERP
                 </div>
             </div>
             <div class="card-footer bg-light py-3 d-flex justify-content-between align-items-center">
-                <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Select office first to load stock-bearing items. Issued qty: 0 = no stock movement, partial/full deducts stock.</span>
+                <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Select office first to load available Items. Assets are individually tracked; material lines use quantity stock. Petty Purchase is selected during storekeeper processing.</span>
                 <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddLineFooter" disabled>
                     <i class="bi bi-plus-lg me-1"></i> Add Another Item
                 </button>
@@ -141,6 +141,62 @@ Record Physical Indent - Central Store ERP
             </button>
         </div>
     </form>
+</div>
+
+<!-- QUICK CREATE TEMPORARY MATERIAL ITEM MODAL -->
+<div class="modal fade" id="quickItemModal" tabindex="-1" aria-labelledby="quickItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold" id="quickItemModalLabel"><i class="bi bi-bag-plus me-2"></i>Add Temporary / Petty Purchase Item</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Create a temporary <strong>Material</strong> item for this Indent. It can be used immediately for a Petty Purchase and later promoted to the permanent Item Master if repeatedly used.</p>
+                <div id="quickItemAlert" class="alert alert-danger d-none py-2 small"></div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Item Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="quick_item_name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Item Code <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input type="text" class="form-control" id="quick_item_code" placeholder="Auto-generated when blank">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Material Category <span class="text-danger">*</span></label>
+                        <select class="form-select" id="quick_category_id" required>
+                            <option value="">-- Select Material Category --</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Unit <span class="text-danger">*</span></label>
+                        <select class="form-select" id="quick_unit_id" required>
+                            <option value="">-- Select Unit --</option>
+                            {% for u in units %}
+                            <option value="{{ u.id }}">{{ u.name }} ({{ u.symbol }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Specification</label>
+                        <input type="text" class="form-control" id="quick_specification">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Remarks</label>
+                        <input type="text" class="form-control" id="quick_remarks">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success fw-bold" id="btnSaveQuickItem"><i class="bi bi-check-circle me-1"></i>Create Temporary Item</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- SUBMIT CONFIRMATION MODAL -->
@@ -160,9 +216,9 @@ Record Physical Indent - Central Store ERP
                     <h6 class="fw-bold mb-2">This action will:</h6>
                     <ul class="mb-0 ps-3">
                         <li>Record the final issued quantities</li>
-                        <li>Deduct issued quantities from Central Store stock</li>
-                        <li>Update asset movements where asset items are included</li>
-                        <li>Mark this Indent as <strong>COMPLETED / CLOSED</strong></li>
+                        <li>Record requested and storekeeper processing quantities</li>
+                        <li>Choose STOCK or PETTY PURCHASE during processing</li>
+                        <li>Allocate exact physical Assets for Asset lines during Issue creation</li>
                     </ul>
                 </div>
                 <p class="text-danger fw-bold mb-0"><i class="bi bi-shield-lock me-1"></i>After submission, this Indent cannot be edited or modified.</p>
@@ -196,7 +252,8 @@ function createRow(itemId = '', reqQty = '', issQty = '', remarks = '') {
                 data-physical="${item.physical_stock}"
                 data-unserviceable="${item.unserviceable_stock}"
                 data-usable="${item.usable_stock}"
-                ${selected}>${item.name} (${item.code})</option>`;
+                data-category="${item.category_name || ''}"
+                ${selected}>${item.name} (${item.code})${item.category_name ? ' [' + item.category_name + ']' : ''}${item.is_asset ? ' [ASSET]' : ''}</option>`;
         });
     }
 
@@ -352,6 +409,84 @@ function isAllZero() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const quickBtn = document.getElementById('btnSaveQuickItem');
+    if (quickBtn) {
+        quickBtn.addEventListener('click', async () => {
+            const name = document.getElementById('quick_item_name').value.trim();
+            const code = document.getElementById('quick_item_code').value.trim();
+            const category_id = document.getElementById('quick_category_id').value;
+            const unit_id = document.getElementById('quick_unit_id').value;
+            const specification = document.getElementById('quick_specification').value.trim();
+            const remarks = document.getElementById('quick_remarks').value.trim();
+            const alertBox = document.getElementById('quickItemAlert');
+
+            if (!name || !category_id || !unit_id) {
+                if (alertBox) {
+                    alertBox.textContent = 'Item Name, Material Category and Unit are required.';
+                    alertBox.classList.remove('d-none');
+                }
+                return;
+            }
+
+            quickBtn.disabled = true;
+            try {
+                const resp = await fetch('/indents/quick-create-item', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, code, category_id, unit_id, specification, remarks })
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to create temporary item.');
+                }
+
+                stockItemsData.unshift(data.item);
+                document.querySelectorAll('.item-select').forEach(sel => {
+                    if ([...sel.options].some(o => String(o.value) === String(data.item.id))) return;
+                    const opt = document.createElement('option');
+                    opt.value = data.item.id;
+                    opt.setAttribute('data-unit', data.item.unit_symbol || '');
+                    opt.setAttribute('data-asset', 'false');
+                    opt.setAttribute('data-physical', '0');
+                    opt.setAttribute('data-unserviceable', '0');
+                    opt.setAttribute('data-usable', '0');
+                    opt.textContent = `${data.item.name} (${data.item.code}) [${data.item.category_name}]`;
+                    sel.appendChild(opt);
+                });
+
+                let targetSelect = null;
+                for (const row of document.querySelectorAll('#linesTbody tr')) {
+                    const sel = row.querySelector('.item-select');
+                    if (sel && !sel.value) { targetSelect = sel; break; }
+                }
+                if (!targetSelect) {
+                    createRow();
+                    targetSelect = document.querySelector('#linesTbody tr:last-child .item-select');
+                }
+                targetSelect.value = String(data.item.id);
+                onItemChange(targetSelect);
+
+                const modalEl = document.getElementById('quickItemModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                document.getElementById('quick_item_name').value = '';
+                document.getElementById('quick_item_code').value = '';
+                document.getElementById('quick_specification').value = '';
+                document.getElementById('quick_remarks').value = '';
+                document.getElementById('quick_category_id').value = '';
+                document.getElementById('quick_unit_id').value = '';
+                if (alertBox) alertBox.classList.add('d-none');
+            } catch (err) {
+                if (alertBox) {
+                    alertBox.textContent = err.message;
+                    alertBox.classList.remove('d-none');
+                }
+            } finally {
+                quickBtn.disabled = false;
+            }
+        });
+    }
+
     const btnAddLine = document.getElementById('btnAddLine');
     const btnAddLineFooter = document.getElementById('btnAddLineFooter');
     if (btnAddLine) btnAddLine.addEventListener('click', () => createRow());

@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 import math
 
 from app.models.category import Category
+from app.models.item import Item
 from app.schemas.category import CategoryCreate, CategoryUpdate
 from app.core.constants import PAGE_SIZE
 
@@ -221,7 +222,19 @@ def update_category(
     # ------------------------
 
     if "type" in update_data:
-        db_category.type = update_data["type"]
+        new_type = update_data["type"]
+        if new_type != db_category.type:
+            item_in_use = (
+                db.query(Item)
+                .filter(Item.category_id == category_id)
+                .first()
+            )
+            if item_in_use:
+                raise ValueError(
+                    "Category type cannot be changed after the category is used by an Item. "
+                    "Create a new Category instead."
+                )
+        db_category.type = new_type
 
     try:
         db.commit()

@@ -1,4 +1,5 @@
 from datetime import date
+import json
 from typing import Optional
 from decimal import Decimal
 from fastapi import APIRouter, Depends, Request, Form, HTTPException, Query, status
@@ -29,7 +30,7 @@ from app.crud.receipt import (
     get_receipt_by_id,
     update_receipt,
 )
-from app.schemas.receipt import ReceiptCreate, ReceiptLineCreate, ReceiptUpdate
+from app.schemas.receipt import ReceiptCreate, ReceiptLineCreate, ReceiptUpdate, ReceiptAssetEntryCreate
 from app.services.posting_service import post_receipt
 
 router = APIRouter(
@@ -301,6 +302,7 @@ async def submit_new_receipt_ui(
     quantities = form_data.getlist("quantity[]")
     unit_prices = form_data.getlist("unit_price[]")
     line_remarks_list = form_data.getlist("line_remarks[]")
+    asset_entries_json = form_data.getlist("asset_entries_json[]")
 
     if not item_ids:
         return RedirectResponse(
@@ -338,6 +340,15 @@ async def submit_new_receipt_ui(
             )
 
         l_remarks = str(line_remarks_list[i]).strip() if i < len(line_remarks_list) else None
+        raw_assets = asset_entries_json[i] if i < len(asset_entries_json) else "[]"
+        try:
+            asset_payload = json.loads(raw_assets or "[]")
+            asset_entries = [ReceiptAssetEntryCreate(**entry) for entry in asset_payload]
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            return RedirectResponse(
+                url=f"/receipts/new?error=Invalid+asset+details:+{e}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
 
         lines_create.append(
             ReceiptLineCreate(
@@ -345,6 +356,7 @@ async def submit_new_receipt_ui(
                 quantity=qty,
                 unit_price=rate,
                 remarks=l_remarks or None,
+                asset_entries=asset_entries,
             )
         )
 
@@ -520,6 +532,7 @@ async def update_receipt_ui(
     quantities = form_data.getlist("quantity[]")
     unit_prices = form_data.getlist("unit_price[]")
     line_remarks_list = form_data.getlist("line_remarks[]")
+    asset_entries_json = form_data.getlist("asset_entries_json[]")
 
     if not item_ids:
         return RedirectResponse(
@@ -557,6 +570,15 @@ async def update_receipt_ui(
             )
 
         l_remarks = str(line_remarks_list[i]).strip() if i < len(line_remarks_list) else None
+        raw_assets = asset_entries_json[i] if i < len(asset_entries_json) else "[]"
+        try:
+            asset_payload = json.loads(raw_assets or "[]")
+            asset_entries = [ReceiptAssetEntryCreate(**entry) for entry in asset_payload]
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            return RedirectResponse(
+                url=f"/receipts/edit/{receipt_id}?error=Invalid+asset+details:+{e}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
 
         lines_update.append(
             ReceiptLineCreate(
@@ -564,6 +586,7 @@ async def update_receipt_ui(
                 quantity=qty,
                 unit_price=rate,
                 remarks=l_remarks or None,
+                asset_entries=asset_entries,
             )
         )
 

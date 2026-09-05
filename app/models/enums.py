@@ -35,6 +35,17 @@ class UnserviceableStatus(str, Enum):
 
 
 
+class FulfillmentType(str, Enum):
+    """How an Indent line is fulfilled.
+
+    STOCK: fulfilled from the stock-owning store.
+    PETTY_PURCHASE: planned for direct/local purchase and immediate issue.
+    """
+
+    STOCK = "STOCK"
+    PETTY_PURCHASE = "PETTY_PURCHASE"
+
+
 class IndentStatus(str, Enum):
     DRAFT = "DRAFT"
     PROCESSING = "PROCESSING"
@@ -78,4 +89,4 @@ class DestinationType(str, Enum):
     INTERNAL = "INTERNAL"
     EXTERNAL = "EXTERNAL"
 
-
+

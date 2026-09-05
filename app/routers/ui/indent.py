@@ -11,7 +11,7 @@ from app.core.templates import templates
 from app.core.constants import PAGE_SIZE
 from app.dependencies.ui_auth import get_current_user_ui
 from app.models.user import User
-from app.models.enums import IndentStatus, RequestSource, Category_Type, DestinationType, AssetStatus
+from app.models.enums import IndentStatus, RequestSource, Category_Type, DestinationType, AssetStatus, FulfillmentType
 from app.models.category import Category
 from app.models.item import Item
 from app.models.indent import Indent
@@ -27,6 +27,9 @@ from app.crud.indent import (
     update_indent,
 )
 from app.crud.issue import create_issue
+from app.crud.item import create_temporary_item
+from app.crud.category import get_category_lookup
+from app.crud.unit import get_unit_lookup
 from app.crud.office import get_all_offices_dropdown
 from app.crud.section import get_all_sections_dropdown
 from app.crud.financial_year import get_all_financial_years, get_current_financial_year
@@ -36,6 +39,7 @@ from app.schemas.indent import IndentCreate, IndentLineCreate, IndentUpdate, Ind
 from app.schemas.issue import IssueCreate, IssueLineCreate
 from app.services.scope_service import get_stock_office_id
 from app.services.stock_service import (
+    get_available_asset_count,
     get_item_stock,
     get_item_unserviceable_stock,
     get_item_usable_stock,
@@ -134,6 +138,65 @@ def list_indents_ui(
     )
 
 
+@router.post("/quick-create-item")
+async def quick_create_indent_item_ui(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_ui),
+):
+    """Create a temporary MATERIAL Item while recording a physical Indent."""
+    try:
+        data = await request.json()
+        name = str(data.get("name", "")).strip()
+        code = str(data.get("code", "")).strip() or None
+        category_id = int(data.get("category_id"))
+        unit_id = int(data.get("unit_id"))
+        specification = str(data.get("specification", "")).strip() or None
+        remarks = str(data.get("remarks", "")).strip() or None
+    except (TypeError, ValueError):
+        return {"success": False, "error": "Invalid temporary item details."}
+
+    try:
+        category = db.query(Category).filter(
+            Category.id == category_id,
+            Category.is_active == True,
+        ).first()
+        if not category:
+            return {"success": False, "error": "Category not found."}
+        if category.type != Category_Type.MATERIAL:
+            return {
+                "success": False,
+                "error": "Temporary/Petty Purchase Items must use a MATERIAL category.",
+            }
+
+        item = create_temporary_item(
+            db=db,
+            name=name,
+            category_id=category_id,
+            unit_id=unit_id,
+            code=code,
+            specification=specification,
+            remarks=remarks,
+        )
+        return {
+            "success": True,
+            "item": {
+                "id": item.id,
+                "name": item.name,
+                "code": item.code,
+                "unit_symbol": item.unit.symbol if item.unit else "",
+                "physical_stock": 0,
+                "unserviceable_stock": 0,
+                "usable_stock": 0,
+                "is_asset": False,
+                "is_temporary": True,
+                "category_name": item.category.name if item.category else "",
+            },
+        }
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
 @router.get("/entry", response_class=HTMLResponse)
 @router.get("/record", response_class=HTMLResponse)
 def record_physical_indent_ui(
@@ -144,6 +207,8 @@ def record_physical_indent_ui(
     current_user: User = Depends(get_current_user_ui),
 ):
     offices = get_all_offices_dropdown(db)
+    categories = [c for c in get_category_lookup(db) if c.type == Category_Type.MATERIAL]
+    units = get_unit_lookup(db)
 
     return templates.TemplateResponse(
         request=request,
@@ -154,6 +219,8 @@ def record_physical_indent_ui(
             "current_user": current_user,
             "user": current_user,
             "offices": offices,
+            "categories": categories,
+            "units": units,
             "today_date": date.today().isoformat(),
             "error": error,
             "success": success,
@@ -244,7 +311,6 @@ async def submit_physical_indent_ui(
         )
 
     lines_create = []
-    issue_lines_create = []
 
     for i in range(len(item_ids)):
         if not item_ids[i] or not item_ids[i].isdigit():
@@ -291,40 +357,6 @@ async def submit_physical_indent_ui(
             )
         )
 
-        # Only create issue lines for qty > 0
-        if iss_qty > 0:
-            item_obj = db.query(Item).filter(Item.id == item_id).first()
-            asset_ids = []
-            if item_obj and item_obj.category and item_obj.category.type == Category_Type.ASSET:
-                store_office_id = get_stock_office_id(db, office_id)
-                available_assets = (
-                    db.query(Asset)
-                    .filter(
-                        Asset.item_id == item_id,
-                        Asset.office_id == store_office_id,
-                        Asset.status == AssetStatus.IN_STORE,
-                        Asset.is_active == True,
-                    )
-                    .limit(int(iss_qty))
-                    .all()
-                )
-                if len(available_assets) < int(iss_qty):
-                    return RedirectResponse(
-                        url=f"/indents/entry?error=Insufficient+IN_STORE+assets+for+{item_obj.name if item_obj else item_id}.+Available:+{len(available_assets)},+Required:+{int(iss_qty)}.",
-                        status_code=status.HTTP_303_SEE_OTHER,
-                    )
-                asset_ids = [a.id for a in available_assets]
-
-            issue_lines_create.append(
-                IssueLineCreate(
-                    item_id=item_id,
-                    unit_id=item_obj.unit_id if item_obj else None,
-                    quantity=iss_qty,
-                    remarks=l_remarks or None,
-                    asset_ids=asset_ids if asset_ids else None,
-                )
-            )
-
     if not lines_create:
         return RedirectResponse(
             url="/indents/entry?error=No+valid+item+lines+provided.",
@@ -350,31 +382,11 @@ async def submit_physical_indent_ui(
             user_id=current_user.id,
         )
 
-        # Only create/post Issue when at least one line has qty > 0
-        if issue_lines_create:
-            issue = create_issue(
-                db=db,
-                issue_in=IssueCreate(
-                    financial_year_id=fy.id,
-                    indent_id=indent.id,
-                    office_id=office_id,
-                    section_id=section_id,
-                    destination_type=DestinationType.INTERNAL,
-                    issue_date=indent_date,
-                    reference_no=reference_no,
-                    remarks=remarks,
-                    lines=issue_lines_create,
-                ),
-                user_id=current_user.id,
-            )
-            # post_issue also closes the indent
-            post_issue(db=db, issue_id=issue.id, user_id=current_user.id)
-        else:
-            # All-zero — close the indent directly without creating an Issue
-            close_indent(db=db, indent_id=indent.id, user_id=current_user.id)
-
+        # The Indent is the request document. Do not silently create an Issue
+        # or auto-select arbitrary Assets here. The Issue screen is the final
+        # allocation/posting step and can select exact physical Assets.
         return RedirectResponse(
-            url=f"/indents/receipt/{indent.id}",
+            url=f"/issues/create?indent_id={indent.id}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -433,16 +445,32 @@ def view_indent_detail_ui(
         if not line.is_active:
             continue
 
-        usable = get_item_usable_stock(db, item_id=line.item_id, office_id=indent.office_id, financial_year_id=indent.financial_year_id)
-        physical = get_item_stock(db, item_id=line.item_id, office_id=indent.office_id, financial_year_id=indent.financial_year_id)
-        unserviceable = get_item_unserviceable_stock(db, item_id=line.item_id, office_id=indent.office_id, financial_year_id=indent.financial_year_id)
-
-        is_asset = False
-        if line.item and line.item.category:
-            is_asset = (line.item.category.type == Category_Type.ASSET)
+        is_asset = bool(
+            line.item
+            and line.item.category
+            and line.item.category.type == Category_Type.ASSET
+        )
 
         if is_asset:
             has_asset_item = True
+            usable = get_available_asset_count(
+                db, item_id=line.item_id, office_id=indent.office_id
+            )
+            physical = usable
+            unserviceable = 0.0
+        else:
+            usable = get_item_usable_stock(
+                db, item_id=line.item_id, office_id=indent.office_id,
+                financial_year_id=indent.financial_year_id
+            )
+            physical = get_item_stock(
+                db, item_id=line.item_id, office_id=indent.office_id,
+                financial_year_id=indent.financial_year_id
+            )
+            unserviceable = get_item_unserviceable_stock(
+                db, item_id=line.item_id, office_id=indent.office_id,
+                financial_year_id=indent.financial_year_id
+            )
 
         enriched_lines.append({
             "line": line,
@@ -477,17 +505,18 @@ async def process_indent_ui(
     current_user: User = Depends(get_current_user_ui),
 ):
     """
-    V1 detail-form submit — no Save path.
-    Zero-issued lines create no stock movement; all-zero is allowed.
+    Save storekeeper processing quantities on the Indent and hand off to the
+    Issue screen for final allocation/posting. Asset lines are never assigned
+    automatically; exact physical Assets must be selected in Issue creation.
     """
     indent = get_indent_by_id(db, indent_id)
     if not indent:
         raise HTTPException(status_code=404, detail="Indent not found")
+    if indent.status == IndentStatus.CLOSED:
+        raise HTTPException(status_code=400, detail="Cannot process a closed Indent.")
 
     form_data = await request.form()
-
     line_updates = []
-    issue_lines_create = []
 
     for line in indent.lines:
         if not line.is_active:
@@ -495,98 +524,66 @@ async def process_indent_ui(
 
         issued_key = f"issued_qty_{line.id}"
         remarks_key = f"remarks_{line.id}"
+        fulfillment_key = f"fulfillment_{line.id}"
+        if issued_key not in form_data:
+            continue
 
-        if issued_key in form_data:
-            try:
-                issued_qty = float(form_data[issued_key])
-            except ValueError:
-                issued_qty = 0.0
+        try:
+            issued_qty = float(form_data[issued_key])
+        except (TypeError, ValueError):
+            issued_qty = 0.0
 
-            if issued_qty < 0:
-                return RedirectResponse(
-                    url=f"/indents/view/{indent_id}?error=Issued+quantity+cannot+be+negative+for+{line.item.name}",
-                    status_code=status.HTTP_303_SEE_OTHER,
-                )
-            if issued_qty > line.requested_quantity:
-                return RedirectResponse(
-                    url=f"/indents/view/{indent_id}?error=Issued+quantity+cannot+exceed+requested+({line.requested_quantity})+for+{line.item.name}",
-                    status_code=status.HTTP_303_SEE_OTHER,
-                )
-
-            remarks_val = str(form_data.get(remarks_key, "")).strip()
-            line_updates.append(
-                IndentLineUpdate(
-                    id=line.id,
-                    issued_quantity=issued_qty,
-                    remarks=remarks_val or None,
-                )
+        if issued_qty < 0:
+            return RedirectResponse(
+                url=f"/indents/view/{indent_id}?error=Issued+quantity+cannot+be+negative+for+{line.item.name}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        if issued_qty > line.requested_quantity:
+            return RedirectResponse(
+                url=f"/indents/view/{indent_id}?error=Issued+quantity+cannot+exceed+requested+({line.requested_quantity})+for+{line.item.name}",
+                status_code=status.HTTP_303_SEE_OTHER,
             )
 
-            if issued_qty > 0:
-                asset_ids = []
-                if line.item and line.item.category and line.item.category.type == Category_Type.ASSET:
-                    available_assets = (
-                        db.query(Asset)
-                        .filter(
-                            Asset.item_id == line.item_id,
-                            Asset.office_id == indent.office_id,
-                            Asset.status == AssetStatus.IN_STORE,
-                            Asset.is_active == True,
-                        )
-                        .limit(int(issued_qty))
-                        .all()
-                    )
-                    asset_ids = [a.id for a in available_assets]
+        remarks_val = str(form_data.get(remarks_key, "")).strip()
+        fulfillment_raw = str(form_data.get(fulfillment_key, line.fulfillment_type.value)).strip()
+        try:
+            fulfillment = FulfillmentType(fulfillment_raw)
+        except ValueError:
+            fulfillment = line.fulfillment_type
 
-                issue_lines_create.append(
-                    IssueLineCreate(
-                        item_id=line.item_id,
-                        unit_id=line.item.unit_id if line.item else None,
-                        quantity=issued_qty,
-                        remarks=remarks_val or None,
-                        asset_ids=asset_ids if asset_ids else None,
-                    )
-                )
+        # Initial petty-purchase implementation is for material lines only.
+        is_asset = bool(line.item and line.item.category and line.item.category.type == Category_Type.ASSET)
+        if is_asset and fulfillment == FulfillmentType.PETTY_PURCHASE:
+            return RedirectResponse(
+                url=f"/indents/view/{indent_id}?error=Asset+item+{line.item.name}+cannot+be+fulfilled+through+Petty+Purchase.",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+
+        line_updates.append(
+            IndentLineUpdate(
+                id=line.id,
+                issued_quantity=issued_qty,
+                fulfillment_type=fulfillment,
+                remarks=remarks_val or None,
+            )
+        )
 
     try:
-        # Update issued quantities on the existing indent lines
         if line_updates:
             update_indent(
                 db=db,
                 indent_id=indent_id,
-                indent_in=IndentUpdate(lines=line_updates, status=IndentStatus.PROCESSING),
-                user_id=current_user.id,
-            )
-
-        # Refresh to get updated state
-        indent = get_indent_by_id(db, indent_id)
-
-        if issue_lines_create:
-            issue = create_issue(
-                db=db,
-                issue_in=IssueCreate(
-                    financial_year_id=indent.financial_year_id,
-                    indent_id=indent.id,
-                    office_id=indent.office_id,
-                    section_id=indent.section_id,
-                    destination_type=DestinationType.INTERNAL,
-                    issue_date=date.today(),
-                    reference_no=indent.reference_no,
-                    remarks=indent.remarks,
-                    lines=issue_lines_create,
+                indent_in=IndentUpdate(
+                    lines=line_updates,
+                    status=IndentStatus.PROCESSING,
                 ),
                 user_id=current_user.id,
             )
-            post_issue(db=db, issue_id=issue.id, user_id=current_user.id)
-        else:
-            # All-zero — close without Issue
-            close_indent(db=db, indent_id=indent_id, user_id=current_user.id)
 
         return RedirectResponse(
-            url=f"/indents/receipt/{indent.id}",
+            url=f"/issues/create?indent_id={indent_id}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
-
     except ValueError as e:
         return RedirectResponse(
             url=f"/indents/view/{indent_id}?error={str(e).replace(' ', '+')}",

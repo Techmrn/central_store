@@ -19,8 +19,10 @@ from .indent_line import IndentLine
 from .stock_movement import StockMovement
 from .issue import Issue, IssueLine, IssueLineAsset
 from .outward_pass import OutwardPass
-from .receipt import Receipt, ReceiptLine
+from .receipt import Receipt, ReceiptLine, ReceiptLineAsset
 from .stock_return import StockReturn, StockReturnLine, StockReturnLineAsset
 from .stock_transfer import StockTransfer, StockTransferLine, StockTransferLineAsset
 from .unserviceable_material import UnserviceableMaterial
 
+
+from .petty_purchase import PettyPurchase

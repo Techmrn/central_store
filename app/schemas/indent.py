@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import IndentStatus, RequestSource
+from app.models.enums import IndentStatus, RequestSource, FulfillmentType
 
 
 # --- Indent Line Schemas ---
@@ -11,6 +11,7 @@ class IndentLineBase(BaseModel):
     item_id: int
     requested_quantity: float = Field(gt=0, description="Requested quantity must be strictly greater than 0")
     issued_quantity: Optional[float] = Field(default=0.0, ge=0, description="Issued quantity must be non-negative")
+    fulfillment_type: FulfillmentType = FulfillmentType.STOCK
     remarks: Optional[str] = None
 
 
@@ -21,6 +22,7 @@ class IndentLineCreate(IndentLineBase):
 class IndentLineUpdate(BaseModel):
     id: int
     issued_quantity: Optional[float] = Field(default=None, ge=0, description="Storekeeper can update issued quantity")
+    fulfillment_type: Optional[FulfillmentType] = None
     remarks: Optional[str] = None
 
 
@@ -30,6 +32,7 @@ class IndentLineRead(BaseModel):
     item_id: int
     requested_quantity: float
     issued_quantity: float
+    fulfillment_type: FulfillmentType
     remarks: Optional[str] = None
     is_active: bool
     created_at: datetime

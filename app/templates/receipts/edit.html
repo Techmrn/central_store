@@ -145,7 +145,7 @@ Edit Goods Receipt - {{ receipt.receipt_no }} - Central Store ERP
                 <div class="text-muted small">
                     <i class="bi bi-info-circle me-1"></i>
                     <strong>Save Draft Changes</strong> updates the draft without modifying stock ledger.
-                    <strong>Post to Stock</strong> locks the document and updates current inventory.
+                    <strong>Post Receipt</strong> locks the document and updates current inventory.
                 </div>
                 <div class="d-flex gap-2">
                     <a href="/receipts/view/{{ receipt.id }}" class="btn btn-outline-secondary px-3">Cancel</a>
@@ -153,7 +153,7 @@ Edit Goods Receipt - {{ receipt.receipt_no }} - Central Store ERP
                         <i class="bi bi-file-earmark-check me-1"></i> Save Draft Changes
                     </button>
                     <button type="button" class="btn btn-success px-4 fw-semibold" id="btnPostReceipt">
-                        <i class="bi bi-check-circle me-1"></i> Post to Stock
+                        <i class="bi bi-check-circle me-1"></i> Post Receipt
                     </button>
                 </div>
             </div>
@@ -229,7 +229,7 @@ Edit Goods Receipt - {{ receipt.receipt_no }} - Central Store ERP
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-3">Are you sure you want to <strong>Post Goods Receipt {{ receipt.receipt_no }}</strong> into store stock?</p>
+                    <p class="mb-3">Are you sure you want to <strong>Post Goods Receipt {{ receipt.receipt_no }}</strong> into the appropriate Office Store / Asset Register?</p>
                     <ul class="list-group list-group-flush mb-3 small">
                         <li class="list-group-item d-flex justify-content-between"><span>Total Items:</span> <strong id="modalItemCount">0</strong></li>
                         <li class="list-group-item d-flex justify-content-between"><span>Total Quantity:</span> <strong id="modalTotalQty">0.00</strong></li>
@@ -237,7 +237,7 @@ Edit Goods Receipt - {{ receipt.receipt_no }} - Central Store ERP
                     </ul>
                     <div class="alert alert-warning py-2 small mb-0">
                         <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                        <strong>Irreversible Action:</strong> Posting will increase physical stock ledger and the receipt will become <strong>Read-Only</strong>.
+                        <strong>Irreversible Action:</strong> Posting will update the appropriate stock/asset records and the receipt will become <strong>Read-Only</strong>.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -254,13 +254,14 @@ Edit Goods Receipt - {{ receipt.receipt_no }} - Central Store ERP
 
 {% block scripts %}
 <script>
-let itemsData = [
+const itemsData = [
     {% for item in items %}
     {
         id: {{ item.id }},
         code: {{ item.code|tojson }},
         name: {{ item.name|tojson }},
         category_name: {{ (item.category.name if item.category else '')|tojson }},
+        category_type: {{ (item.category.type.value if item.category else '')|tojson }},
         unit_name: {{ (item.unit.name if item.unit else (item.unit.code if item.unit else 'Nos'))|tojson }},
         is_temporary: {{ 'true' if item.is_temporary else 'false' }}
     }{% if not loop.last %},{% endif %}
@@ -270,330 +271,221 @@ let itemsData = [
 const existingLines = [
     {% for line in receipt.lines %}
     {
-        item_id: {{ line.item_id }},
-        quantity: {{ line.quantity }},
-        unit_price: {{ line.unit_price if line.unit_price is not none else 'null' }},
-        remarks: {{ (line.remarks or '')|tojson }}
+        "item_id": {{ line.item_id }},
+        "quantity": {{ line.quantity }},
+        "unit_price": {{ line.unit_price if line.unit_price is not none else 'null' }},
+        "remarks": {{ (line.remarks or '')|tojson }},
+        "asset_entries": [
+            {% for ae in line.asset_entries %}
+            {"asset_no": {{ (ae.asset_no or '')|tojson }}, "serial_no": {{ (ae.serial_no or '')|tojson }}, "make": {{ (ae.make or '')|tojson }}, "model": {{ (ae.model or '')|tojson }}, "purchase_date": {{ (ae.purchase_date.isoformat() if ae.purchase_date else '')|tojson }}, "purchase_reference": {{ (ae.purchase_reference or '')|tojson }}, "purchase_value": {{ ae.purchase_value if ae.purchase_value is not none else 'null' }}, "warranty_expiry_date": {{ (ae.warranty_expiry_date.isoformat() if ae.warranty_expiry_date else '')|tojson }}, "technical_specifications": {{ (ae.technical_specifications or '')|tojson }}, "remarks": {{ (ae.remarks or '')|tojson }}}{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
-
 let rowIdx = 0;
 
-function recalculateTotals() {
-    let totalQty = 0;
-    let totalVal = 0;
-    let count = 0;
+function esc(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
-    document.querySelectorAll('#linesTbody tr').forEach((tr) => {
-        count++;
-        const rowNumCell = tr.querySelector('.row-num');
-        if (rowNumCell) rowNumCell.textContent = count;
-
-        const qtyInput = tr.querySelector('.qty-input');
-        const rateInput = tr.querySelector('.rate-input');
-        const lineTotalCell = tr.querySelector('.line-total');
-
-        const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
-        const rate = parseFloat(rateInput ? rateInput.value : 0) || 0;
-        const lineTotal = qty * rate;
-
-        if (lineTotalCell) {
-            lineTotalCell.textContent = '₹ ' + lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        totalQty += qty;
-        totalVal += lineTotal;
-    });
-
-    const footQty = document.getElementById('footerTotalQty');
-    const footVal = document.getElementById('footerTotalValue');
-    if (footQty) footQty.textContent = totalQty.toFixed(2);
-    if (footVal) footVal.textContent = '₹ ' + totalVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    const modalCnt = document.getElementById('modalItemCount');
-    const modalQty = document.getElementById('modalTotalQty');
-    const modalVal = document.getElementById('modalTotalValue');
-    if (modalCnt) modalCnt.textContent = count;
-    if (modalQty) modalQty.textContent = totalQty.toFixed(2);
-    if (modalVal) modalVal.textContent = '₹ ' + totalVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function getItem(itemId) {
+    return itemsData.find(i => String(i.id) === String(itemId));
 }
 
 function getItemSelectOptions(selectedItemId = '') {
     let opts = '<option value="">-- Search / Select Item --</option>';
-    
-    // Group into Permanent vs Local Purchase
     const permanentItems = itemsData.filter(i => !i.is_temporary);
     const tempItems = itemsData.filter(i => i.is_temporary);
-
-    if (tempItems.length > 0) {
-        opts += '<optgroup label="⭐ Local Purchase / Temporary Items">';
-        tempItems.forEach(item => {
-            const isSel = selectedItemId && String(selectedItemId) === String(item.id) ? 'selected' : '';
-            opts += `<option value="${item.id}" data-unit="${item.unit_name}" ${isSel}>[LP] ${item.name} (${item.code})</option>`;
-        });
+    const render = item => {
+        const sel = selectedItemId && String(selectedItemId) === String(item.id) ? 'selected' : '';
+        const label = item.is_temporary ? `[LP] ${esc(item.name)} (${esc(item.code)})` : `${esc(item.name)} (${esc(item.code)}) [${esc(item.category_name)}]`;
+        return `<option value="${item.id}" data-unit="${esc(item.unit_name)}" data-type="${esc(item.category_type)}" ${sel}>${label}</option>`;
+    };
+    if (tempItems.length) {
+        opts += '<optgroup label="⭐ Temporary / Local Purchase Items">';
+        tempItems.forEach(i => opts += render(i));
         opts += '</optgroup>';
     }
-
     opts += '<optgroup label="📦 Permanent Catalogue Items">';
-    permanentItems.forEach(item => {
-        const isSel = selectedItemId && String(selectedItemId) === String(item.id) ? 'selected' : '';
-        opts += `<option value="${item.id}" data-unit="${item.unit_name}" ${isSel}>${item.name} (${item.code}) [${item.category_name}]</option>`;
-    });
+    permanentItems.forEach(i => opts += render(i));
     opts += '</optgroup>';
-
     return opts;
 }
 
-function updateAllSelectDropdowns() {
-    document.querySelectorAll('.item-select').forEach(sel => {
-        const currentVal = sel.value;
-        sel.innerHTML = getItemSelectOptions(currentVal);
-    });
+function readAssetEntries(tr) {
+    const hidden = tr.querySelector('.asset-entries-json');
+    try { return JSON.parse(hidden?.value || '[]') || []; } catch { return []; }
 }
 
-function createLineRow(selectedItemId = '', qty = '', rate = '', remarks = '') {
+function syncAssetEntries(tr) {
+    const hidden = tr.querySelector('.asset-entries-json');
+    if (!hidden) return;
+    const entries = [];
+    tr.querySelectorAll('.asset-entry-card').forEach(card => {
+        const get = key => card.querySelector(`[data-field="${key}"]`)?.value || null;
+        entries.push({
+            asset_no: get('asset_no'), serial_no: get('serial_no'), make: get('make'), model: get('model'),
+            purchase_date: get('purchase_date'), purchase_reference: get('purchase_reference'),
+            purchase_value: get('purchase_value') ? Number(get('purchase_value')) : null,
+            warranty_expiry_date: get('warranty_expiry_date'),
+            technical_specifications: get('technical_specifications'), remarks: get('remarks')
+        });
+    });
+    hidden.value = JSON.stringify(entries);
+}
+
+function renderAssetEditor(tr, suppliedEntries = null) {
+    const itemSelect = tr.querySelector('.item-select');
+    const editor = tr.querySelector('.asset-editor');
+    const qtyInput = tr.querySelector('.qty-input');
+    const hidden = tr.querySelector('.asset-entries-json');
+    if (!itemSelect || !editor || !qtyInput || !hidden) return;
+
+    const item = getItem(itemSelect.value);
+    if (!item || item.category_type !== 'Asset') {
+        editor.classList.add('d-none');
+        editor.innerHTML = '';
+        hidden.value = '[]';
+        return;
+    }
+
+    editor.classList.remove('d-none');
+    const qty = Number(qtyInput.value || 0);
+    const count = Math.floor(qty);
+    const oldEntries = suppliedEntries ?? readAssetEntries(tr);
+
+    if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) {
+        editor.innerHTML = '<div class="alert alert-warning py-2 small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Asset receipts require a whole-number quantity.</div>';
+        hidden.value = '[]';
+        return;
+    }
+
+    const entries = [];
+    for (let i = 0; i < count; i++) entries.push(oldEntries[i] || {});
+    let html = '<div class="border rounded-3 bg-light p-2 mt-2"><div class="small fw-bold text-primary mb-2"><i class="bi bi-box-seam me-1"></i>Physical Asset Details</div>';
+    entries.forEach((e, idx) => {
+        html += `<div class="asset-entry-card border rounded bg-white p-2 mb-2" data-index="${idx}">
+            <div class="d-flex justify-content-between align-items-center mb-2"><span class="badge bg-primary">Asset ${idx + 1}</span><span class="small text-muted">Asset No may be left blank for auto-generation.</span></div>
+            <div class="row g-2">
+                <div class="col-md-3"><label class="form-label small mb-1">Asset No</label><input data-field="asset_no" class="form-control form-control-sm" value="${esc(e.asset_no)}" placeholder="Auto-generated"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Serial No</label><input data-field="serial_no" class="form-control form-control-sm" value="${esc(e.serial_no)}"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Make</label><input data-field="make" class="form-control form-control-sm" value="${esc(e.make)}"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Model</label><input data-field="model" class="form-control form-control-sm" value="${esc(e.model)}"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Purchase Date</label><input type="date" data-field="purchase_date" class="form-control form-control-sm" value="${esc(e.purchase_date)}"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Purchase Ref</label><input data-field="purchase_reference" class="form-control form-control-sm" value="${esc(e.purchase_reference)}"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Purchase Value</label><input type="number" step="0.01" min="0" data-field="purchase_value" class="form-control form-control-sm" value="${esc(e.purchase_value)}"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Warranty Expiry</label><input type="date" data-field="warranty_expiry_date" class="form-control form-control-sm" value="${esc(e.warranty_expiry_date)}"></div>
+                <div class="col-md-6"><label class="form-label small mb-1">Technical Specifications</label><input data-field="technical_specifications" class="form-control form-control-sm" value="${esc(e.technical_specifications)}"></div>
+                <div class="col-md-6"><label class="form-label small mb-1">Remarks</label><input data-field="remarks" class="form-control form-control-sm" value="${esc(e.remarks)}"></div>
+            </div></div>`;
+    });
+    html += '</div>';
+    editor.innerHTML = html;
+    editor.querySelectorAll('[data-field]').forEach(input => input.addEventListener('input', () => syncAssetEntries(tr)));
+    syncAssetEntries(tr);
+}
+
+function recalculateTotals() {
+    let totalQty = 0, totalVal = 0, count = 0;
+    document.querySelectorAll('#linesTbody tr').forEach(tr => {
+        count++;
+        const n = tr.querySelector('.row-num'); if (n) n.textContent = count;
+        const qty = parseFloat(tr.querySelector('.qty-input')?.value || 0) || 0;
+        const rate = parseFloat(tr.querySelector('.rate-input')?.value || 0) || 0;
+        const total = qty * rate;
+        const totalCell = tr.querySelector('.line-total'); if (totalCell) totalCell.textContent = '₹ ' + total.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+        totalQty += qty; totalVal += total;
+    });
+    document.getElementById('footerTotalQty')?.replaceChildren(document.createTextNode(totalQty.toFixed(2)));
+    document.getElementById('footerTotalValue')?.replaceChildren(document.createTextNode('₹ ' + totalVal.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})));
+    document.getElementById('modalItemCount')?.replaceChildren(document.createTextNode(String(count)));
+    document.getElementById('modalTotalQty')?.replaceChildren(document.createTextNode(totalQty.toFixed(2)));
+    document.getElementById('modalTotalValue')?.replaceChildren(document.createTextNode('₹ ' + totalVal.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})));
+}
+
+function createLineRow(selectedItemId = '', qty = '', rate = '', remarks = '', assetEntries = []) {
     rowIdx++;
     const tr = document.createElement('tr');
     tr.id = `line_row_${rowIdx}`;
-
-    tr.innerHTML = `
-        <td class="text-center row-num text-muted fw-bold">${rowIdx}</td>
-        <td>
-            <select class="form-select form-select-sm item-select" name="item_id[]" required>
-                ${getItemSelectOptions(selectedItemId)}
-            </select>
-            <input type="text" class="form-control form-control-sm mt-1 text-muted small line-remarks" name="line_remarks[]" placeholder="Line item remarks (optional)" value="${remarks || ''}">
-        </td>
-        <td>
-            <span class="badge bg-light text-dark border px-2 py-1 unit-badge">-</span>
-        </td>
-        <td>
-            <input type="number" class="form-control form-control-sm qty-input fw-bold" name="quantity[]" step="any" min="0.01" placeholder="0.00" value="${qty !== '' ? qty : ''}" required>
-        </td>
-        <td>
-            <input type="number" class="form-control form-control-sm rate-input" name="unit_price[]" step="any" min="0" placeholder="0.00" value="${rate !== null && rate !== '' ? rate : ''}">
-        </td>
-        <td class="text-end fw-bold text-dark line-total">
-            ₹ 0.00
-        </td>
-        <td class="text-center">
-            <button type="button" class="btn btn-outline-danger btn-sm btn-remove-row" title="Remove line">
-                <i class="bi bi-trash"></i>
-            </button>
-        </td>
-    `;
-
-    const tbody = document.getElementById('linesTbody');
-    if (tbody) tbody.appendChild(tr);
-
+    tr.innerHTML = `<td class="text-center row-num text-muted fw-bold">${rowIdx}</td>
+        <td><select class="form-select form-select-sm item-select" name="item_id[]" required>${getItemSelectOptions(selectedItemId)}</select>
+            <input type="text" class="form-control form-control-sm mt-1 line-remarks" name="line_remarks[]" placeholder="Line remarks (optional)" value="${esc(remarks)}">
+            <input type="hidden" class="asset-entries-json" name="asset_entries_json[]" value="${esc(JSON.stringify(assetEntries || []))}">
+            <div class="asset-editor d-none"></div></td>
+        <td><span class="badge bg-light text-dark border px-2 py-1 unit-badge">-</span></td>
+        <td><input type="number" class="form-control form-control-sm qty-input fw-bold" name="quantity[]" step="any" min="0.01" value="${esc(qty)}" required></td>
+        <td><input type="number" class="form-control form-control-sm rate-input" name="unit_price[]" step="0.01" min="0" value="${rate !== null && rate !== '' ? esc(rate) : ''}"></td>
+        <td class="text-end fw-bold text-dark line-total">₹ 0.00</td>
+        <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm btn-remove-row" title="Remove line"><i class="bi bi-trash"></i></button></td>`;
+    document.getElementById('linesTbody')?.appendChild(tr);
     const itemSelect = tr.querySelector('.item-select');
-    const unitBadge = tr.querySelector('.unit-badge');
     const qtyInput = tr.querySelector('.qty-input');
-    const rateInput = tr.querySelector('.rate-input');
-    const btnRemove = tr.querySelector('.btn-remove-row');
-
-    function updateUnit() {
-        const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
-        const unitName = selectedOpt ? selectedOpt.getAttribute('data-unit') : '-';
-        if (unitBadge) unitBadge.textContent = unitName || 'Nos';
-    }
-
-    if (itemSelect) {
-        itemSelect.addEventListener('change', () => {
-            updateUnit();
-            recalculateTotals();
-        });
-        if (selectedItemId) {
-            updateUnit();
-        }
-    }
-
-    if (qtyInput) qtyInput.addEventListener('input', recalculateTotals);
-    if (rateInput) rateInput.addEventListener('input', recalculateTotals);
-
-    if (btnRemove) {
-        btnRemove.addEventListener('click', () => {
-            const currentRows = document.querySelectorAll('#linesTbody tr');
-            if (currentRows.length <= 1) {
-                alert('At least one item line is required on the receipt.');
-                return;
-            }
-            tr.remove();
-            recalculateTotals();
-        });
-    }
-
-    recalculateTotals();
+    const unitBadge = tr.querySelector('.unit-badge');
+    const update = () => {
+        const item = getItem(itemSelect.value);
+        unitBadge.textContent = item?.unit_name || '-';
+        renderAssetEditor(tr);
+        recalculateTotals();
+    };
+    itemSelect.addEventListener('change', update);
+    qtyInput.addEventListener('input', () => { renderAssetEditor(tr); recalculateTotals(); });
+    tr.querySelector('.rate-input').addEventListener('input', recalculateTotals);
+    tr.querySelector('.btn-remove-row').addEventListener('click', () => {
+        if (document.querySelectorAll('#linesTbody tr').length <= 1) { alert('At least one item line is required.'); return; }
+        tr.remove(); recalculateTotals();
+    });
+    update();
+    if (itemSelect.value && getItem(itemSelect.value)?.category_type === 'Asset') renderAssetEditor(tr, assetEntries);
     return tr;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Populate existing lines
-    if (existingLines.length > 0) {
-        existingLines.forEach(line => {
-            createLineRow(line.item_id, line.quantity, line.unit_price, line.remarks);
-        });
-    } else {
-        createLineRow();
-    }
+    if (existingLines.length) existingLines.forEach(line => createLineRow(line.item_id, line.quantity, line.unit_price, line.remarks, line.asset_entries || []));
+    else createLineRow();
+    document.getElementById('btnAddLine')?.addEventListener('click', () => createLineRow());
+    document.getElementById('btnAddLineFoot')?.addEventListener('click', () => createLineRow());
 
-    // Add buttons
-    const btnAdd = document.getElementById('btnAddLine');
-    const btnAddFoot = document.getElementById('btnAddLineFoot');
-    if (btnAdd) btnAdd.addEventListener('click', () => createLineRow());
-    if (btnAddFoot) btnAddFoot.addEventListener('click', () => createLineRow());
-
-    // Quick create Local Purchase item AJAX
     const btnSaveQuickItem = document.getElementById('btnSaveQuickItem');
     const quickAlert = document.getElementById('quickItemAlert');
+    btnSaveQuickItem?.addEventListener('click', async () => {
+        const name=document.getElementById('quick_item_name').value.trim(), code=document.getElementById('quick_item_code').value.trim();
+        const category_id=document.getElementById('quick_category_id').value, unit_id=document.getElementById('quick_unit_id').value;
+        const specification=document.getElementById('quick_specification').value.trim(), remarks=document.getElementById('quick_remarks').value.trim();
+        if(!name||!category_id||!unit_id){ quickAlert.textContent='Please fill in Item Name, Category, and Unit.'; quickAlert.classList.remove('d-none'); return; }
+        btnSaveQuickItem.disabled=true;
+        try {
+            const resp=await fetch('/receipts/quick-create-item',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,code,category_id,unit_id,specification,remarks})});
+            const data=await resp.json(); if(!resp.ok||!data.success) throw new Error(data.error||'Failed to create item.');
+            itemsData.unshift(data.item);
+            const rows=document.querySelectorAll('#linesTbody tr'); let target=null; for(const row of rows){if(!row.querySelector('.item-select').value){target=row;break;}}
+            if(!target) target=createLineRow();
+            const sel=target.querySelector('.item-select'); sel.innerHTML=getItemSelectOptions(data.item.id); sel.value=data.item.id; sel.dispatchEvent(new Event('change'));
+            target.querySelector('.qty-input').focus();
+            bootstrap.Modal.getInstance(document.getElementById('localPurchaseModal'))?.hide(); document.getElementById('quickItemForm').reset(); quickAlert.classList.add('d-none');
+        }catch(err){quickAlert.textContent=err.message;quickAlert.classList.remove('d-none');}finally{btnSaveQuickItem.disabled=false;}
+    });
 
-    if (btnSaveQuickItem) {
-        btnSaveQuickItem.addEventListener('click', async () => {
-            const name = document.getElementById('quick_item_name').value.trim();
-            const code = document.getElementById('quick_item_code').value.trim();
-            const category_id = document.getElementById('quick_category_id').value;
-            const unit_id = document.getElementById('quick_unit_id').value;
-            const specification = document.getElementById('quick_specification').value.trim();
-            const remarks = document.getElementById('quick_remarks').value.trim();
-
-            if (!name || !category_id || !unit_id) {
-                if (quickAlert) {
-                    quickAlert.textContent = 'Please fill in Item Name, Category, and Unit.';
-                    quickAlert.classList.remove('d-none');
-                }
-                return;
-            }
-
-            btnSaveQuickItem.disabled = true;
-            btnSaveQuickItem.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating...';
-
-            try {
-                const resp = await fetch('/receipts/quick-create-item', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, code, category_id, unit_id, specification, remarks })
-                });
-
-                const data = await resp.json();
-
-                if (!resp.ok || !data.success) {
-                    throw new Error(data.error || 'Failed to create item.');
-                }
-
-                // Add to itemsData array
-                itemsData.unshift(data.item);
-
-                // Update select dropdowns
-                updateAllSelectDropdowns();
-
-                // Find the first empty row or create new row with this item selected
-                const rows = document.querySelectorAll('#linesTbody tr');
-                let targetRow = null;
-                for (const tr of rows) {
-                    const sel = tr.querySelector('.item-select');
-                    if (sel && !sel.value) {
-                        targetRow = tr;
-                        break;
-                    }
-                }
-
-                if (targetRow) {
-                    const sel = targetRow.querySelector('.item-select');
-                    sel.value = data.item.id;
-                    const badge = targetRow.querySelector('.unit-badge');
-                    if (badge) badge.textContent = data.item.unit_name;
-                    const qtyInp = targetRow.querySelector('.qty-input');
-                    if (qtyInp) qtyInp.focus();
-                } else {
-                    const newTr = createLineRow(data.item.id);
-                    const qtyInp = newTr.querySelector('.qty-input');
-                    if (qtyInp) qtyInp.focus();
-                }
-
-                // Close modal & reset form
-                const modalEl = document.getElementById('localPurchaseModal');
-                const modal = bootstrap.Modal.getInstance(modalEl);
-                if (modal) modal.hide();
-                document.getElementById('quickItemForm').reset();
-                if (quickAlert) quickAlert.classList.add('d-none');
-
-            } catch (err) {
-                if (quickAlert) {
-                    quickAlert.textContent = err.message;
-                    quickAlert.classList.remove('d-none');
-                }
-            } finally {
-                btnSaveQuickItem.disabled = false;
-                btnSaveQuickItem.innerHTML = '<i class="bi bi-check-circle me-1"></i> Create &amp; Add to Receipt';
-            }
-        });
-    }
-
-    // Validation helper
     function validateForm() {
-        const form = document.getElementById('receiptEditForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return false;
-        }
-
-        const rows = document.querySelectorAll('#linesTbody tr');
-        if (rows.length === 0) {
-            alert('Please add at least one item line.');
-            return false;
-        }
-
-        let valid = true;
-        rows.forEach(tr => {
-            const itemSelect = tr.querySelector('.item-select');
-            const qtyInput = tr.querySelector('.qty-input');
-            if (!itemSelect || !itemSelect.value) {
-                alert('Please select an item for all rows.');
-                if (itemSelect) itemSelect.focus();
-                valid = false;
-            } else if (!qtyInput || parseFloat(qtyInput.value) <= 0 || isNaN(parseFloat(qtyInput.value))) {
-                alert('Quantity must be greater than 0 for all rows.');
-                if (qtyInput) qtyInput.focus();
-                valid = false;
+        const form=document.getElementById(receiptEditForm); if(!form.checkValidity()){form.reportValidity();return false;}
+        const rows=document.querySelectorAll('#linesTbody tr'); if(!rows.length){alert('Please add at least one item line.');return false;}
+        for(const tr of rows){
+            const item=getItem(tr.querySelector('.item-select')?.value), qty=Number(tr.querySelector('.qty-input')?.value||0);
+            if(!item||qty<=0){alert('Please select valid items and quantities.');return false;}
+            if(item.category_type==='Asset'){
+                if(!Number.isInteger(qty)){alert(`Asset item '${item.name}' requires a whole-number quantity.`);return false;}
+                const entries=readAssetEntries(tr); if(entries.length!==qty){alert(`Please provide details for all ${qty} physical asset(s) for '${item.name}'.`);return false;}
+                syncAssetEntries(tr);
             }
-        });
-
-        return valid;
+        }
+        return true;
     }
-
-    // Save as Draft
-    const btnSaveDraft = document.getElementById('btnSaveDraft');
-    if (btnSaveDraft) {
-        btnSaveDraft.addEventListener('click', () => {
-            if (!validateForm()) return;
-            document.getElementById('actionTypeInput').value = 'save_draft';
-            document.getElementById('receiptEditForm').submit();
-        });
-    }
-
-    // Post to Stock modal trigger
-    const btnPostReceipt = document.getElementById('btnPostReceipt');
-    if (btnPostReceipt) {
-        btnPostReceipt.addEventListener('click', () => {
-            if (!validateForm()) return;
-            recalculateTotals();
-            const modalEl = document.getElementById('confirmPostModal');
-            if (modalEl) {
-                const modal = new bootstrap.Modal(modalEl);
-                modal.show();
-            }
-        });
-    }
-
-    // Confirm post modal submit
-    const btnConfirmPostSubmit = document.getElementById('btnConfirmPostSubmit');
-    if (btnConfirmPostSubmit) {
-        btnConfirmPostSubmit.addEventListener('click', () => {
-            document.getElementById('actionTypeInput').value = 'post';
-            document.getElementById('receiptEditForm').submit();
-        });
-    }
+    const save=document.getElementById('btnSaveDraft'); save?.addEventListener('click',()=>{if(!validateForm())return;document.getElementById('actionTypeInput').value='save_draft';document.getElementById(receiptEditForm).submit();});
+    const post=document.getElementById('btnPostReceipt'); post?.addEventListener('click',()=>{if(!validateForm())return;recalculateTotals();new bootstrap.Modal(document.getElementById('confirmPostModal')).show();});
+    document.getElementById('btnConfirmPostSubmit')?.addEventListener('click',()=>{document.getElementById('actionTypeInput').value='post';document.getElementById(receiptEditForm).submit();});
 });
 </script>
 {% endblock %}

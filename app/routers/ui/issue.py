@@ -8,7 +8,7 @@ from app.core.db import get_db
 from app.core.templates import templates
 from app.dependencies.ui_auth import get_current_user_ui
 from app.models.user import User
-from app.models.enums import DestinationType, TransactionStatus, Category_Type, AssetStatus
+from app.models.enums import DestinationType, TransactionStatus, Category_Type, AssetStatus, FulfillmentType
 from app.models.asset import Asset
 from app.models.issue import Issue
 
@@ -25,11 +25,12 @@ from app.crud.financial_year import get_all_financial_years
 from app.crud.outward_pass import create_outward_pass, get_outward_pass_by_issue_id
 
 from app.schemas.issue import IssueCreate, IssueLineCreate
+from app.schemas.petty_purchase import PettyPurchaseCreate
 from app.schemas.outward_pass import OutwardPassCreate
 from app.services.document_number_service import generate_document_number
 from app.services.posting_service import post_issue
 from app.services.scope_service import get_stock_office_id
-from app.services.stock_service import get_item_usable_stock
+from app.services.stock_service import get_available_asset_count, get_item_usable_stock
 
 router = APIRouter(
     prefix="/issues",
@@ -120,18 +121,27 @@ def create_issue_form_ui(
         default_qty = line.issued_quantity if (line.issued_quantity is not None and line.issued_quantity > 0) else line.requested_quantity
         
         store_office_id = get_stock_office_id(db, indent.office_id)
-        usable = get_item_usable_stock(db, item_id=line.item_id, office_id=indent.office_id, financial_year_id=indent.financial_year_id)
-        
-        is_asset = False
+        is_asset = bool(
+            line.item
+            and line.item.category
+            and line.item.category.type == Category_Type.ASSET
+        )
         available_assets = []
-        if line.item and line.item.category and line.item.category.type == Category_Type.ASSET:
-            is_asset = True
+        if is_asset:
             available_assets = db.query(Asset).filter(
                 Asset.item_id == line.item_id,
                 Asset.office_id == store_office_id,
                 Asset.status == AssetStatus.IN_STORE,
                 Asset.is_active == True,
-            ).all()
+            ).order_by(Asset.asset_no).all()
+            usable = len(available_assets)
+        else:
+            usable = get_item_usable_stock(
+                db,
+                item_id=line.item_id,
+                office_id=indent.office_id,
+                financial_year_id=indent.financial_year_id,
+            )
 
         prepared_lines.append({
             "line": line,
@@ -190,6 +200,11 @@ async def submit_create_issue_ui(
         qty_key = f"qty_{line.id}"
         remarks_key = f"remarks_{line.id}"
         assets_key = f"assets_{line.id}"
+        pp_date_key = f"pp_date_{line.id}"
+        pp_supplier_key = f"pp_supplier_{line.id}"
+        pp_ref_key = f"pp_ref_{line.id}"
+        pp_rate_key = f"pp_rate_{line.id}"
+        pp_remarks_key = f"pp_remarks_{line.id}"
 
         if qty_key in form_data:
             try:
@@ -214,6 +229,27 @@ async def submit_create_issue_ui(
                     )
 
             line_remarks = form_data.get(remarks_key, "").strip() or None
+            petty_purchase = None
+            if line.fulfillment_type == FulfillmentType.PETTY_PURCHASE:
+                from datetime import date as _date
+                purchase_date_raw = str(form_data.get(pp_date_key, "")).strip()
+                purchase_date = _date.fromisoformat(purchase_date_raw) if purchase_date_raw else _date.today()
+                rate_raw = str(form_data.get(pp_rate_key, "")).strip()
+                try:
+                    rate_value = float(rate_raw) if rate_raw else None
+                except ValueError:
+                    return RedirectResponse(
+                        url=f"/issues/create?indent_id={indent_id}&error=Invalid+unit+rate+for+{line.item.name}",
+                        status_code=status.HTTP_303_SEE_OTHER,
+                    )
+                petty_purchase = PettyPurchaseCreate(
+                    purchase_date=purchase_date,
+                    supplier_name=str(form_data.get(pp_supplier_key, "")).strip() or None,
+                    reference_no=str(form_data.get(pp_ref_key, "")).strip() or None,
+                    unit_price=rate_value,
+                    remarks=str(form_data.get(pp_remarks_key, "")).strip() or None,
+                )
+
             issue_lines.append(
                 IssueLineCreate(
                     item_id=line.item_id,
@@ -221,6 +257,7 @@ async def submit_create_issue_ui(
                     quantity=qty_val,
                     remarks=line_remarks,
                     asset_ids=selected_asset_ids if selected_asset_ids else None,
+                    petty_purchase=petty_purchase,
                 )
             )
 

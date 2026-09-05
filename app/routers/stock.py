@@ -42,6 +42,7 @@ def get_stock_balance_endpoint(
     search: str = "",
     category_id: Optional[int] = None,
     office_id: Optional[int] = None,
+    financial_year_id: Optional[int] = None,
     page: int = 1,
     db: Session = Depends(get_db),
     current_user=Depends(require_permission("STOCK_VIEW")),
@@ -51,6 +52,7 @@ def get_stock_balance_endpoint(
         search=search,
         category_id=category_id,
         office_id=office_id,
+        financial_year_id=financial_year_id,
         page=page,
     )
 
@@ -109,6 +111,7 @@ def get_distribution_register_endpoint(
 def get_item_transaction_register_endpoint(
     item_id: int,
     office_id: Optional[int] = None,
+    financial_year_id: Optional[int] = None,
     page: int = 1,
     db: Session = Depends(get_db),
     current_user=Depends(require_permission("STOCK_VIEW")),
@@ -117,6 +120,7 @@ def get_item_transaction_register_endpoint(
         db=db,
         item_id=item_id,
         office_id=office_id,
+        financial_year_id=financial_year_id,
         page=page,
     )
 

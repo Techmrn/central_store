@@ -2,11 +2,50 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.enums import MovementType, TransactionSource, UnserviceableStatus
+from app.models.enums import MovementType, TransactionSource, UnserviceableStatus, Category_Type, AssetStatus
 from app.models.opening_stock import OpeningStock
 from app.models.stock_movement import StockMovement
+from app.models.item import Item
+from app.models.category import Category
+from app.models.asset import Asset
 from app.models.unserviceable_material import UnserviceableMaterial
 from app.services.scope_service import get_stock_office_id
+
+
+def is_asset_item(db: Session, item_id: int) -> bool:
+    """Return True when the Item belongs to an active ASSET category."""
+    category_type = (
+        db.query(Category.type)
+        .join(Item, Item.category_id == Category.id)
+        .filter(
+            Item.id == item_id,
+            Item.is_active == True,
+            Category.is_active == True,
+        )
+        .scalar()
+    )
+    return category_type == Category_Type.ASSET
+
+def get_available_asset_count(
+    db: Session,
+    item_id: int,
+    office_id: Optional[int] = None,
+) -> int:
+    """Count active, IN_STORE Assets for an Asset Item in the resolved store."""
+    target_office_id = get_stock_office_id(db, office_id) if office_id is not None else None
+    query = db.query(func.count(Asset.id)).join(Item, Asset.item_id == Item.id).join(
+        Category, Item.category_id == Category.id
+    ).filter(
+        Asset.item_id == item_id,
+        Asset.status == AssetStatus.IN_STORE,
+        Asset.is_active == True,
+        Item.is_active == True,
+        Category.is_active == True,
+        Category.type == Category_Type.ASSET,
+    )
+    if target_office_id is not None:
+        query = query.filter(Asset.office_id == target_office_id)
+    return int(query.scalar() or 0)
 
 
 def get_item_stock(
@@ -21,6 +60,17 @@ def get_item_stock(
     Excludes historical audit transactions (transaction_source == HISTORICAL).
     Double-counting protection: If OPENING StockMovement exists for this FY, OpeningStock model is not added twice.
     """
+    # Asset items are not quantity stock. Their availability is derived from
+    # the Asset Register, so Stock Ledger balance for an Asset item is always 0.
+    category_type = (
+        db.query(Category.type)
+        .join(Item, Item.category_id == Category.id)
+        .filter(Item.id == item_id, Item.is_active == True, Category.is_active == True)
+        .scalar()
+    )
+    if category_type == Category_Type.ASSET:
+        return 0.0
+
     target_office_id = get_stock_office_id(db, office_id) if office_id is not None else None
 
     sm_query = db.query(
@@ -78,6 +128,15 @@ def get_item_unserviceable_stock(
     Includes materials currently in UNSERVICEABLE or UNDER_REPAIR status.
     Excludes REPAIRED, CONDEMNED, or DISPOSED materials.
     """
+    category_type = (
+        db.query(Category.type)
+        .join(Item, Item.category_id == Category.id)
+        .filter(Item.id == item_id, Item.is_active == True, Category.is_active == True)
+        .scalar()
+    )
+    if category_type == Category_Type.ASSET:
+        return 0.0
+
     target_office_id = get_stock_office_id(db, office_id) if office_id is not None else None
 
     un_query = db.query(
@@ -130,6 +189,12 @@ def validate_stock_availability(
     Check if usable stock is >= required_qty.
     Raises ValueError if stock is insufficient.
     """
+    if is_asset_item(db, item_id):
+        raise ValueError(
+            f"Stock validation is not applicable to Asset item ID {item_id}; "
+            "validate individual Assets instead."
+        )
+
     usable = get_item_usable_stock(
         db,
         item_id=item_id,
